@@ -1,0 +1,10 @@
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="675" fill="#080808"/>
+  <rect x="1" y="1" width="1198" height="673" rx="42" stroke="white" stroke-opacity="0.08" stroke-width="2"/>
+  <path d="M0 455C160 360 325 330 494 365C705 409 815 324 1200 206V675H0V455Z" fill="#E50914" fill-opacity="0.16"/>
+  <circle cx="600" cy="338" r="132" fill="white" fill-opacity="0.08"/>
+  <circle cx="600" cy="338" r="96" stroke="white" stroke-opacity="0.42" stroke-width="10"/>
+  <path d="M600 260L642 290L626 340H574L558 290L600 260Z" fill="white" fill-opacity="0.82"/>
+  <path d="M600 260V214M642 290L686 276M626 340L653 378M574 340L547 378M558 290L514 276" stroke="white" stroke-opacity="0.55" stroke-width="8" stroke-linecap="round"/>
+  <text x="600" y="510" text-anchor="middle" fill="white" fill-opacity="0.78" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" letter-spacing="4">NJ SPORTS FOOTBALL</text>
+</svg>
