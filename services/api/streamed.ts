@@ -1,7 +1,9 @@
+import { clubTeams, internationalTeams } from "@/lib/teamPreferences";
 import type { ContentRowView, MatchCardView, SearchResult, StreamedMatch, StreamedSource, StreamedStream, StreamedTeam } from "@/services/api/types";
 
 export const STREAMED_API_BASE_URL = process.env.NEXT_PUBLIC_STREAMED_API_BASE_URL ?? "https://streamed.pk/api";
 export const STREAMED_IMAGE_BASE_URL = process.env.NEXT_PUBLIC_STREAMED_IMAGE_BASE_URL ?? `${STREAMED_API_BASE_URL.replace(/\/+$/, "")}/images`;
+const STREAMED_BROWSER_PROXY_BASE_URL = "/api/streamed";
 
 const fallbackImage = "/brand/nj-sports-logo.png";
 const liveFootballThumbnail = "/images/Live-Stream-Thumbnail.jpg";
@@ -16,14 +18,36 @@ export function createMatchSlug(title: string): string {
 }
 
 const footballTerms = ["football", "soccer", "premier league", "la liga", "serie a", "bundesliga", "ligue 1", "champions league", "europa league", "world cup", "afc", "uefa", "fifa"];
+const nonSoccerTerms = ["american football", "australian football", "college football", "nfl", "cfl", "afl", "rugby"];
+const soccerLeagueTerms = ["fifa", "uefa", "premier league", "la liga", "serie a", "bundesliga", "ligue 1", "champions league", "europa league", "conference league", "world cup", "copa america", "libertadores", "mls", "major league soccer"];
+const soccerTeamTerms = [...internationalTeams, ...clubTeams].map((team) => normalizeTerm(team));
 
 function normalizeTerm(value?: string): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function matchFields(match: StreamedMatch): string[] {
+  return [match.sport, match.category, match.competition, match.title, ...match.teams.map((team) => team.name)].map(normalizeTerm).filter(Boolean);
+}
+
+function fieldIncludesAny(fields: string[], terms: string[]): boolean {
+  return fields.some((field) => terms.some((term) => field.includes(term)));
+}
+
 export function isFootballMatch(match: StreamedMatch): boolean {
-  const fields = [match.sport, match.category, match.competition, match.title, ...match.teams.map((team) => team.name)].map(normalizeTerm);
-  return fields.some((field) => footballTerms.some((term) => field.includes(term)));
+  const fields = matchFields(match);
+  return fieldIncludesAny(fields, footballTerms);
+}
+
+export function isSoccerMatch(match: StreamedMatch): boolean {
+  const fields = matchFields(match);
+  if (fieldIncludesAny(fields, nonSoccerTerms)) return false;
+
+  const sport = normalizeTerm(match.sport);
+  if (sport === "football" || sport === "soccer" || sport === "association football") return true;
+  if (sport.includes("soccer")) return true;
+
+  return fieldIncludesAny(fields, soccerLeagueTerms) || fieldIncludesAny(fields, soccerTeamTerms);
 }
 
 function onlyFootball(matches: StreamedMatch[]): StreamedMatch[] {
@@ -69,7 +93,8 @@ function unwrapArray(value: unknown): unknown[] {
 }
 
 async function requestJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${STREAMED_API_BASE_URL}${path}`, {
+  const baseUrl = typeof window === "undefined" ? STREAMED_API_BASE_URL : STREAMED_BROWSER_PROXY_BASE_URL;
+  const response = await fetch(`${baseUrl}${path}`, {
     headers: { Accept: "application/json" },
     cache: "no-store"
   });
@@ -327,9 +352,9 @@ function uniqueMatches(matches: StreamedMatch[]): StreamedMatch[] {
 }
 
 export function createLiveFootballCards(live: StreamedMatch[], today: StreamedMatch[], upcoming: StreamedMatch[], minimumCount = 5): MatchCardView[] {
-  const liveMatches = uniqueMatches(live);
+  const liveMatches = uniqueMatches(live.filter(isSoccerMatch));
   const liveIds = new Set(liveMatches.map((match) => match.id));
-  const upcomingMatches = uniqueMatches([...today, ...upcoming]).filter((match) => !match.live && !liveIds.has(match.id));
+  const upcomingMatches = uniqueMatches([...today, ...upcoming]).filter((match) => isSoccerMatch(match) && !match.live && !liveIds.has(match.id));
   const fillCount = Math.max(0, minimumCount - liveMatches.length);
   return [...liveMatches, ...upcomingMatches.slice(0, fillCount)].map(toLiveFootballCard);
 }

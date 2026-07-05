@@ -2,12 +2,13 @@
 
 import { motion } from "framer-motion";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Shell } from "@/components/Shell";
 import { SafeImage } from "@/components/SafeImage";
 import { useHighlightRouteTarget } from "@/hooks/useStreamedData";
 import { cn } from "@/lib/utils";
+import { appendYouTubeStartParam, getResumeTimeFromSearch, upsertContinueWatchingItem } from "@/lib/continueWatching";
 
 function HighlightSkeleton() {
   return (
@@ -39,10 +40,13 @@ function PlayerIconButton({ label, onClick, active, children }: { label: string;
 
 export function HighlightPlayerExperience({ slug }: { slug: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const target = useHighlightRouteTarget(slug);
   const highlight = target.highlight;
   const playerContainerRef = useRef<HTMLElement | null>(null);
+  const watchedTimeRef = useRef(0);
   const [leaving, setLeaving] = useState(false);
+  const resumeTime = getResumeTimeFromSearch(searchParams.toString());
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -51,6 +55,32 @@ export function HighlightPlayerExperience({ slug }: { slug: string }) {
       document.body.style.overflow = previousOverflow;
     };
   }, []);
+
+  function saveHighlightProgress(watchedTime: number) {
+    if (!highlight) return;
+    upsertContinueWatchingItem({
+      videoId: `highlight:${highlight.videoId}`,
+      title: highlight.title,
+      thumbnail: highlight.thumbnail,
+      url: highlight.href,
+      duration: 600,
+      watchedTime,
+      lastWatchedAt: Date.now()
+    });
+  }
+
+  useEffect(() => {
+    if (!highlight?.embeddable) return;
+    watchedTimeRef.current = resumeTime;
+    const timer = window.setInterval(() => {
+      watchedTimeRef.current += 5;
+      saveHighlightProgress(watchedTimeRef.current);
+    }, 5000);
+    return () => {
+      window.clearInterval(timer);
+      saveHighlightProgress(watchedTimeRef.current);
+    };
+  }, [highlight, resumeTime]);
 
   function openOfficialHighlight() {
     if (!highlight) return;
@@ -68,7 +98,7 @@ export function HighlightPlayerExperience({ slug }: { slug: string }) {
             <HighlightSkeleton />
           ) : highlight?.embeddable ? (
             <iframe
-              src={highlight.embedUrl}
+              src={appendYouTubeStartParam(highlight.embedUrl, resumeTime)}
               title={highlight.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"

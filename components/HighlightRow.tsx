@@ -18,6 +18,7 @@ type HighlightRowProps = {
   loadStep?: number;
   variant?: "grid" | "carousel";
   seeAllHref?: string;
+  showTitle?: boolean;
 };
 
 function isExternalHighlight(item: OfficialHighlight) {
@@ -72,7 +73,7 @@ const HighlightCard = memo(function HighlightCard({ item, carousel = false }: { 
   );
 });
 
-export const HighlightRow = memo(function HighlightRow({ title, items, initialCount = 8, loadStep = 8, variant = "grid", seeAllHref }: HighlightRowProps) {
+export const HighlightRow = memo(function HighlightRow({ title, items, initialCount = 8, loadStep = 8, variant = "grid", seeAllHref, showTitle = true }: HighlightRowProps) {
   const router = useRouter();
   const prefetchHighlight = usePrefetchHighlight();
 
@@ -116,14 +117,16 @@ export const HighlightRow = memo(function HighlightRow({ title, items, initialCo
 
   return (
     <section className="px-5 py-5 sm:px-8 lg:px-10 max-md:px-4 max-md:py-4">
-      <div className="mb-4 flex items-center justify-between gap-4 max-md:mb-3">
-        <h2 className="text-xl font-semibold tracking-normal text-white max-md:text-lg">{title}</h2>
-        {variant === "carousel" ? (
-          seeAllHref ? <Link href={seeAllHref} className="shrink-0 text-sm font-semibold text-studio-muted transition hover:text-white max-md:text-xs">See All</Link> : null
-        ) : (
-          <span className="text-sm font-medium text-studio-muted">{sortedItems.length} Highlights</span>
-        )}
-      </div>
+      {showTitle ? (
+        <div className="mb-4 flex items-center justify-between gap-4 max-md:mb-3">
+          <h2 className="text-xl font-semibold tracking-normal text-white max-md:text-lg">{title}</h2>
+          {variant === "carousel" ? (
+            seeAllHref ? <Link href={seeAllHref} className="shrink-0 text-sm font-semibold text-studio-muted transition hover:text-white max-md:text-xs">See All</Link> : null
+          ) : (
+            <span className="text-sm font-medium text-studio-muted">{sortedItems.length} Highlights</span>
+          )}
+        </div>
+      ) : null}
       {variant === "carousel" ? (
         <HorizontalCarousel title={title} className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth pb-4 max-md:snap-x max-md:snap-mandatory">
           {sortedItems.map((item) => renderItem(item, true))}

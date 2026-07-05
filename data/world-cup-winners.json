@@ -1,0 +1,10 @@
+[
+  { "year": 2022, "winner": "Argentina", "flag": "https://flagcdn.com/w80/ar.png" },
+  { "year": 2018, "winner": "France", "flag": "https://flagcdn.com/w80/fr.png" },
+  { "year": 2014, "winner": "Germany", "flag": "https://flagcdn.com/w80/de.png" },
+  { "year": 2010, "winner": "Spain", "flag": "https://flagcdn.com/w80/es.png" },
+  { "year": 2006, "winner": "Italy", "flag": "https://flagcdn.com/w80/it.png" },
+  { "year": 2002, "winner": "Brazil", "flag": "https://flagcdn.com/w80/br.png" },
+  { "year": 1998, "winner": "France", "flag": "https://flagcdn.com/w80/fr.png" },
+  { "year": 1994, "winner": "Brazil", "flag": "https://flagcdn.com/w80/br.png" }
+]

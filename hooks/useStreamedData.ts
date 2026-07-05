@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLiveFootballCards, createMatchSlug, createRows, getAllMatches, getLiveMatches, getStreams, getTodayMatches, searchCatalog, toMatchCard } from "@/services/api/streamed";
-import { getFifaWorldCupHighlights, getHighlightCompetitions, getUefaChampionsLeagueHighlights, type HighlightCompetition, type OfficialHighlight } from "@/services/api/youtube";
+import { getFifaWorldCupHighlights, getHighlightCompetitions, getMls2026Highlights, getUefaChampionsLeagueHighlights, type HighlightCompetition, type OfficialHighlight } from "@/services/api/youtube";
 import { readHighlightRoute, storeHighlightRoute } from "@/lib/highlightRouteStore";
 import { readWatchRoute, storeWatchRoute } from "@/lib/watchRouteStore";
 import type { MatchCardView, SearchResult, StreamedMatch, StreamedStream } from "@/services/api/types";
 import type { FootballScoreboardResponse, NormalizedFootballMatchCenter, NormalizedFootballScore, WorldCupHubResponse } from "@/services/api/football";
+import type { WorldCupStatsResponse } from "@/services/api/worldCupStats";
 
 export const streamedKeys = {
   live: ["streamed", "matches", "live"] as const,
@@ -17,9 +18,11 @@ export const streamedKeys = {
   resolvedStream: (embedUrl: string) => ["streamed", "resolved-stream", embedUrl] as const,
   footballScores: ["football", "scores"] as const,
   worldCupFixtures: ["football", "world-cup-2026"] as const,
+  worldCupStats: ["football", "world-cup-2026", "stats"] as const,
   footballMatch: (id: string) => ["football", "match", id] as const,
   fifaHighlights: ["youtube", "fifa", "world-cup-2026"] as const,
   uefaHighlights: ["youtube", "uefa", "champions-league"] as const,
+  mlsHighlights: ["youtube", "mls", "2026"] as const,
   highlightCompetitions: ["youtube", "competitions"] as const
 };
 
@@ -49,6 +52,17 @@ async function getWorldCup2026FootballFixtures(): Promise<WorldCupHubResponse> {
   }
 
   return (await response.json()) as WorldCupHubResponse;
+}
+async function getWorldCup2026Stats(): Promise<WorldCupStatsResponse> {
+  const response = await fetch("/api/football/world-cup-2026/stats", {
+    headers: { Accept: "application/json" }
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to load World Cup stats");
+  }
+
+  return (await response.json()) as WorldCupStatsResponse;
 }
 
 async function getFootballMatchCenter(matchId: string): Promise<NormalizedFootballMatchCenter> {
@@ -132,6 +146,15 @@ export function useWorldCup2026Fixtures() {
     retry: 1
   });
 }
+export function useWorldCup2026Stats() {
+  return useQuery<WorldCupStatsResponse>({
+    queryKey: streamedKeys.worldCupStats,
+    queryFn: getWorldCup2026Stats,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+    retry: 1
+  });
+}
 
 export function useFootballMatchCenter(matchId?: string, enabled = true) {
   return useQuery<NormalizedFootballMatchCenter>({
@@ -173,6 +196,16 @@ export function useUefaChampionsLeagueHighlights() {
   });
 }
 
+export function useMls2026Highlights() {
+  return useQuery<OfficialHighlight[]>({
+    queryKey: streamedKeys.mlsHighlights,
+    queryFn: getMls2026Highlights,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchInterval: 1000 * 60 * 10,
+    retry: 1
+  });
+}
 export function usePrefetchHighlight() {
   const queryClient = useQueryClient();
   return useCallback((highlight: OfficialHighlight) => {
@@ -188,14 +221,15 @@ export function useHighlightRouteTarget(slug: string) {
   const [storedRoute, setStoredRoute] = useState(() => readHighlightRoute(slug));
   const fifaHighlights = useFifaWorldCupHighlights();
   const uefaHighlights = useUefaChampionsLeagueHighlights();
+  const mlsHighlights = useMls2026Highlights();
 
   useEffect(() => {
     setStoredRoute(readHighlightRoute(slug));
   }, [slug]);
 
   const highlight = useMemo(() => {
-    return [...(fifaHighlights.data ?? []), ...(uefaHighlights.data ?? [])].find((item) => item.href.endsWith(`/${slug}`));
-  }, [fifaHighlights.data, slug, uefaHighlights.data]);
+    return [...(fifaHighlights.data ?? []), ...(uefaHighlights.data ?? []), ...(mlsHighlights.data ?? [])].find((item) => item.href.endsWith(`/${slug}`));
+  }, [fifaHighlights.data, mlsHighlights.data, slug, uefaHighlights.data]);
 
   useEffect(() => {
     if (highlight) storeHighlightRoute(highlight);
@@ -208,6 +242,7 @@ export function useHighlightRouteTarget(slug: string) {
     retry: () => {
       void fifaHighlights.refetch();
       void uefaHighlights.refetch();
+      void mlsHighlights.refetch();
     }
   };
 }
@@ -352,3 +387,10 @@ export function useSearchResults() {
     isLoading: query.trim().length >= 2 && (query !== debouncedQuery || live.isLoading || today.isLoading || all.isLoading)
   };
 }
+
+
+
+
+
+
+

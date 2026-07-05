@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 function emptyWorldCupHub(reason: string): WorldCupHubResponse {
   return {
-    worldCupId: "1",
+    worldCupId: "fifa.world",
     live: [],
     upcoming: [],
     finished: [],
@@ -24,7 +24,9 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error("API-Football World Cup fixtures failed", error);
+    console.error("ESPN World Cup fixtures failed", error);
     return NextResponse.json(emptyWorldCupHub("Unable to load World Cup fixtures"), { status: 200 });
   }
 }
+
+

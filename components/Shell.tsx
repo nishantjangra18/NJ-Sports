@@ -11,6 +11,7 @@ import { FootballIcon } from "@/components/SportsIcons";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cn } from "@/lib/utils";
 import { useSearchResults } from "@/hooks/useStreamedData";
+import { useAuth } from "@/hooks/useAuth";
 
 type NavIcon = LucideIcon | ((props: SVGProps<SVGSVGElement>) => ReactNode);
 
@@ -158,7 +159,22 @@ function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-function SidebarItem({ item, active, onSearch }: { item: NavItem; active?: boolean; onSearch: () => void }) {
+function getInitials(name?: string) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function ProfileAvatar({ name, src, compact = false }: { name?: string; src?: string; compact?: boolean }) {
+  return (
+    <span className={cn("grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/12 bg-white text-black", compact ? "h-10 w-10 text-sm font-bold" : "h-8 w-8 text-[11px] font-bold")}> 
+      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : getInitials(name) || <UserCircle className="h-5 w-5 text-black/70" />}
+    </span>
+  );
+}
+
+function SidebarItem({ item, active, onSearch, onProfile, profileName, profilePic }: { item: NavItem; active?: boolean; onSearch: () => void; onProfile: () => void; profileName?: string; profilePic?: string }) {
   const router = useRouter();
   const Icon = item.icon;
   const className = cn(
@@ -169,7 +185,7 @@ function SidebarItem({ item, active, onSearch }: { item: NavItem; active?: boole
     <>
       {active ? <span className="absolute left-0 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r-full bg-studio-accent shadow-[0_0_14px_rgba(255,40,40,0.75)]" /> : null}
       <span className="grid h-12 w-[72px] shrink-0 place-items-center">
-        <Icon className={cn("h-[21px] w-[21px] stroke-[2] text-white transition duration-200 group-hover/item:scale-[1.05] group-hover/item:drop-shadow-[0_0_8px_rgba(255,40,40,0.35)]", active && "drop-shadow-[0_0_10px_rgba(255,40,40,0.48)]")} />
+        {isLinkItem(item) && item.href === "/profile" ? <ProfileAvatar name={profileName} src={profilePic} /> : <Icon className={cn("h-[21px] w-[21px] stroke-[2] text-white transition duration-200 group-hover/item:scale-[1.05] group-hover/item:drop-shadow-[0_0_8px_rgba(255,40,40,0.35)]", active && "drop-shadow-[0_0_10px_rgba(255,40,40,0.48)]")} />}
       </span>
       <span className={cn("pointer-events-none translate-x-[-8px] whitespace-nowrap text-sm font-semibold tracking-normal text-white opacity-0 transition duration-200 ease-out group-hover/sidebar:translate-x-0 group-hover/sidebar:opacity-100 group-hover/item:[text-shadow:0_0_6px_rgba(255,40,40,0.35),0_0_12px_rgba(255,40,40,0.18)]", active && "[text-shadow:0_0_7px_rgba(255,40,40,0.48),0_0_14px_rgba(255,40,40,0.26)]")}>
         {item.label}
@@ -178,6 +194,14 @@ function SidebarItem({ item, active, onSearch }: { item: NavItem; active?: boole
   );
 
   if (isLinkItem(item)) {
+    if (item.href === "/profile") {
+      return (
+        <button type="button" aria-label={item.label} title={item.label} aria-current={active ? "page" : undefined} onClick={onProfile} className={className}>
+          {content}
+        </button>
+      );
+    }
+
     return (
       <Link
         href={item.href}
@@ -202,20 +226,30 @@ function SidebarItem({ item, active, onSearch }: { item: NavItem; active?: boole
 
 export function Shell({ children, immersive = false }: { children: ReactNode; immersive?: boolean }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
+  const auth = useAuth();
+
+  function handleProfileRequest() {
+    router.push(auth.user ? "/profile" : "/login");
+  }
+
+  const surfaceClass = pathname === "/" ? "fifa-home-surface" : pathname.startsWith("/world-cup-2026") ? "fifa-worldcup-surface" : "";
+
 
   return (
-    <div className="min-h-screen bg-studio-bg text-white">
+    <div className={cn("min-h-screen bg-studio-bg text-white", surfaceClass)}>
       {!immersive ? (
         <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/10 bg-[rgba(7,7,7,0.92)] px-4 shadow-[0_14px_40px_rgba(0,0,0,0.3)] backdrop-blur-2xl md:hidden">
           <BrandLogo priority imageClassName="h-9 w-9" />
-          <Link
-            href="/settings"
+          <button
+            type="button"
+            onClick={handleProfileRequest}
             aria-label="Profile"
             className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white transition active:scale-95"
           >
-            <UserCircle className="h-6 w-6" />
-          </Link>
+            <ProfileAvatar name={auth.user?.name} src={auth.user?.profilePic} compact />
+          </button>
         </header>
       ) : null}
 
@@ -234,6 +268,9 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
                   item={item}
                   active={isLinkItem(item) ? isActivePath(pathname, item.href) : false}
                   onSearch={() => setSearchOpen(true)}
+                  onProfile={handleProfileRequest}
+                  profileName={auth.user?.name}
+                  profilePic={auth.user?.profilePic}
                 />
               ))}
             </div>
@@ -245,6 +282,9 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
                   item={item}
                   active={isActivePath(pathname, item.href)}
                   onSearch={() => setSearchOpen(true)}
+                  onProfile={handleProfileRequest}
+                  profileName={auth.user?.name}
+                  profilePic={auth.user?.profilePic}
                 />
               ))}
             </div>
@@ -298,3 +338,11 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
     </div>
   );
 }
+
+
+
+
+
+
+
+

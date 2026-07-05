@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type ReactNode, type SyntheticEvent } from "react";
 import { motion } from "framer-motion";
 import { CalendarClock, MapPin, Play, Radio } from "lucide-react";
 import { HighlightRow } from "@/components/HighlightRow";
 import { HorizontalCarousel } from "@/components/HorizontalCarousel";
 import { SafeImage } from "@/components/SafeImage";
 import { Shell } from "@/components/Shell";
-import { useFifaWorldCupHighlights, useWorldCup2026Fixtures } from "@/hooks/useStreamedData";
+import { useFifaWorldCupHighlights, useWorldCup2026Fixtures, useWorldCup2026Stats } from "@/hooks/useStreamedData";
 import { cn } from "@/lib/utils";
+import worldCupWinners from "@/data/world-cup-winners.json";
 import type { WorldCupMatch } from "@/services/api/football";
+import type { WorldCupPlayerStat } from "@/services/api/worldCupStats";
 
 const heroImage = "/images/fifa-world-cup-2026-hero-bg.png";
 const oneHourMs = 60 * 60 * 1000;
@@ -158,7 +160,7 @@ function MatchCard({ match, compact = false }: { match: WorldCupMatch; compact?:
 function Hero() {
   return (
     <section className="relative min-h-[560px] overflow-hidden px-5 pb-12 pt-24 sm:px-8 lg:px-10">
-      <SafeImage src={heroImage} alt="" fill priority sizes="100vw" className="object-cover object-center opacity-100" fallbackSrc="/images/fifa-world-cup-live-template.png" />
+      <SafeImage src={heroImage} alt="" fill priority sizes="100vw" className="world-cup-hub-hero-image object-cover object-center opacity-100" fallbackSrc="/images/fifa-world-cup-live-template.png" />
       <div className="world-cup-photo-vignette absolute inset-0" />
       <div className="world-cup-glow absolute inset-0" />
 
@@ -221,9 +223,9 @@ function Fixtures({ matches, hasData }: { matches: WorldCupMatch[]; hasData: boo
       <div className="mx-auto max-w-7xl">
         <SectionHeader eyebrow="Next window" title="Upcoming Fixtures" action="Next 2 days" />
         {upcoming.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <HorizontalCarousel title="Upcoming Fixtures" className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3">
             {upcoming.map((match) => (
-              <Link key={match.fixtureId} href={`/matches/${encodeURIComponent(match.fixtureId)}`} className="grid min-h-[132px] gap-3 rounded-[22px] border border-white/12 bg-white/[0.065] p-4 backdrop-blur-2xl transition hover:border-white/22 hover:bg-white/[0.09]">
+              <Link key={match.fixtureId} href={`/matches/${encodeURIComponent(match.fixtureId)}`} className="world-cup-fixture-card grid min-h-[132px] w-[min(86vw,520px)] shrink-0 snap-start gap-3 rounded-[22px] border border-white/12 bg-white/[0.065] p-4 backdrop-blur-2xl transition hover:border-white/22 hover:bg-white/[0.09] md:w-[520px] lg:w-[520px]">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/44">{formatMatchDate(match.kickoffTimestamp)}</p>
                   <p className="mt-2 truncate text-sm font-semibold text-white">{match.homeTeam.name} vs {match.awayTeam.name}</p>
@@ -235,7 +237,7 @@ function Fixtures({ matches, hasData }: { matches: WorldCupMatch[]; hasData: boo
                 </div>
               </Link>
             ))}
-          </div>
+          </HorizontalCarousel>
         ) : (
           <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-5 text-sm text-white/62 backdrop-blur-2xl">{hasData ? "Fixtures will appear soon" : "Fixtures will appear soon"}</div>
         )}
@@ -244,6 +246,92 @@ function Fixtures({ matches, hasData }: { matches: WorldCupMatch[]; hasData: boo
   );
 }
 
+const fallbackAvatar = "/brand/football-placeholder.svg";
+const playerFallbackAvatar = "/default/player-avatar.png";
+
+function handleStatImageError(event: SyntheticEvent<HTMLImageElement>, fallback = fallbackAvatar) {
+  const image = event.currentTarget;
+  if (image.src.endsWith(fallback)) return;
+  image.src = fallback;
+}
+
+function PlayerStatItem({ stat }: { stat: WorldCupPlayerStat }) {
+  return (
+    <div className="relative min-h-[248px] w-[204px] shrink-0 snap-start rounded-[18px] border border-white/10 bg-black/24">
+      <img src={stat.photo} alt="" onError={(event) => handleStatImageError(event, playerFallbackAvatar)} className="h-40 w-full rounded-t-[18px] object-cover object-top" />
+      <div className="p-2.5">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="rounded-full border border-white/12 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/80">#{stat.rank}</span>
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-white/58">
+            <img src={stat.flag} alt="" onError={handleStatImageError} className="h-4 w-6 rounded-[3px] object-contain ring-1 ring-white/15" />
+            <span className="truncate">{stat.country}</span>
+          </div>
+        </div>
+        <h3 className="line-clamp-1 text-sm font-semibold leading-tight tracking-normal text-white">{stat.name}</h3>
+        <div className="mt-2 flex items-end gap-1.5">
+          <span className="text-xl font-semibold tabular-nums text-white">{stat.goals}</span>
+          <span className="pb-0.5 text-[11px] font-semibold text-white/58">Goals</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatsCard({ title, empty, children }: { title: string; empty: boolean; children: ReactNode }) {
+  return (
+    <article className="min-h-[266px] overflow-hidden rounded-[22px] border border-white/12 bg-white/[0.065] p-4 backdrop-blur-2xl">
+      <h3 className="text-lg font-semibold tracking-normal text-white">{title}</h3>
+      <div className="mt-4">
+        {empty ? (
+          <div className="grid min-h-[176px] place-items-center rounded-[18px] border border-white/10 bg-black/24 px-4 text-center text-sm text-white/54">No stats available</div>
+        ) : (
+          <HorizontalCarousel title={title} className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2">
+            {children}
+          </HorizontalCarousel>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function WorldCupStatsSection() {
+  const stats = useWorldCup2026Stats();
+  const topScorers = stats.data?.topScorers ?? [];
+  const showFallbackNote = stats.isError || Boolean(stats.data?.fallbackUsed || stats.data?.errors.length);
+  const loading = stats.isLoading && !stats.data;
+
+  return (
+    <section className="px-5 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <h2 className="mb-4 text-2xl font-semibold tracking-normal text-white sm:text-3xl">World Cup Stats</h2>
+        {showFallbackNote ? <p className="mb-4 text-sm text-white/54">Live API stats are temporarily limited. Showing cached tournament data when available.</p> : null}
+        <StatsCard title="Top Scorers" empty={!loading && topScorers.length === 0}>
+          {loading ? <div className="grid min-h-[176px] w-full place-items-center text-sm text-white/54">Loading stats...</div> : topScorers.map((stat) => <PlayerStatItem key={`${stat.rank}-${stat.name}-goals`} stat={stat} />)}
+        </StatsCard>
+      </div>
+    </section>
+  );
+}
+function PastWinnersSection() {
+  return (
+    <section className="px-5 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <SectionHeader eyebrow="Tournament history" title="Past World Cup Winners" action="Cached dataset" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {worldCupWinners.map((winner) => (
+            <article key={winner.year} className="flex items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-white/[0.055] px-4 py-3 backdrop-blur-2xl">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/44">{winner.year}</p>
+                <p className="mt-1 text-base font-semibold text-white">{winner.winner}</p>
+              </div>
+              <img src={winner.flag} alt="" className="h-8 w-10 rounded-[5px] object-contain ring-1 ring-white/15" />
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 function Ticker({ matches }: { matches: WorldCupMatch[] }) {
   const items = visibleScore(matches).slice(0, 8);
   if (items.length === 0) return null;
@@ -274,6 +362,8 @@ export function WorldCupHighlightsPage() {
         <Hero />
         <Scorecards matches={allMatches} loading={fixtures.isLoading} hasData={hasWorldCupData} />
         <Fixtures matches={allMatches} hasData={hasWorldCupData} />
+        <WorldCupStatsSection />
+        <PastWinnersSection />
         {highlights.isLoading ? (
           <section className="px-5 py-5 sm:px-8 lg:px-10"><div className="mx-auto max-w-7xl rounded-[22px] border border-white/10 bg-white/[0.06] px-5 py-6 text-sm text-white/62">Loading official FIFA highlights...</div></section>
         ) : highlights.isError ? (
@@ -286,3 +376,10 @@ export function WorldCupHighlightsPage() {
     </Shell>
   );
 }
+
+
+
+
+
+
+

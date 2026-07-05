@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { ContentRow, ContentRowSkeleton } from "@/components/ContentRow";
 import { HighlightRow } from "@/components/HighlightRow";
+import { MlsHighlightsSection } from "@/components/MlsHighlightsSection";
 import { Shell } from "@/components/Shell";
 import { useAllMatches, useHighlightCompetitions, useLiveMatches, useTodayMatches } from "@/hooks/useStreamedData";
 import { createLiveFootballCards, toMatchCard } from "@/services/api/streamed";
@@ -61,6 +62,7 @@ export function FeedPageExperience({ title, emptyLabel, mode }: FeedPageExperien
             {(competitions.data ?? []).map((competition) => (
               <HighlightRow key={competition.id} title={competition.title} items={competition.items} variant="carousel" seeAllHref={competition.href} />
             ))}
+            <MlsHighlightsSection />
           </>
         ) : mode === "sport" ? (
           <>
@@ -68,6 +70,7 @@ export function FeedPageExperience({ title, emptyLabel, mode }: FeedPageExperien
             {(competitions.data ?? []).map((competition) => (
               <HighlightRow key={competition.id} title={competition.title} items={competition.items} variant="carousel" seeAllHref={competition.href} />
             ))}
+            <MlsHighlightsSection />
             <ContentRow title="All Football Highlights" items={footballHighlights} />
           </>
         ) : liveRow.items.length > 0 ? (

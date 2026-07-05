@@ -1,4 +1,4 @@
-export type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league";
+﻿export type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league" | "mls-2026";
 
 export type OfficialHighlight = {
   id: string;
@@ -30,6 +30,7 @@ type HighlightResponse = {
   highlights: OfficialHighlight[];
   fifaWorldCup2026: OfficialHighlight[];
   uefaChampionsLeague: OfficialHighlight[];
+  mls2026: OfficialHighlight[];
 };
 
 let highlightResponsePromise: Promise<HighlightResponse> | null = null;
@@ -73,6 +74,11 @@ export async function getUefaChampionsLeagueHighlights(): Promise<OfficialHighli
   return data.uefaChampionsLeague;
 }
 
+export async function getMls2026Highlights(): Promise<OfficialHighlight[]> {
+  const data = await getOfficialHighlightResponse();
+  return data.mls2026 ?? [];
+}
+
 function formatTimeAgo(value?: string) {
   if (!value) return "Official Highlight";
   const diff = Date.now() - Date.parse(value);
@@ -91,7 +97,7 @@ export function highlightToHeroCard(highlight: OfficialHighlight) {
     id: highlight.id,
     slug: highlight.videoId,
     title: highlight.title,
-    competition: highlight.category === "uefa-champions-league" ? "UEFA Champions League" : highlight.source || highlight.channelTitle,
+    competition: highlight.category === "uefa-champions-league" ? "UEFA Champions League" : highlight.category === "mls-2026" ? "MLS 2026" : highlight.source || highlight.channelTitle,
     meta: formatTimeAgo(highlight.publishedAt),
     image: highlight.thumbnail,
     thumbnail: highlight.thumbnail,

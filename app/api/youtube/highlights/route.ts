@@ -1,4 +1,4 @@
-import { promises as fs } from "fs";
+﻿import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 
@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 
 const fifaChannelId = "UCpcTrCXblq78GZrTUTLWeBw";
 const uefaChampionsLeaguePlaylistId = "PLn5vww_8o5Kty1TVJXxviSL86FfeX4yFc";
+const mls2026PlaylistId = "PLcj4z4KsbIoXrLpj2pOVr_maRaxhW902-";
 const cacheDir = path.join(process.cwd(), "data", "highlight-cache");
 const cacheFile = path.join(cacheDir, "official-highlights.json");
-const oneHourMs = 60 * 60 * 1000;
-const cacheVersion = 5;
+const highlightRefreshMs = 10 * 60 * 1000;
+const cacheVersion = 6;
 const rejectedTitleTerms = [
   "Alt Cast",
   "Gamified",
@@ -29,7 +30,7 @@ const rejectedTitleTerms = [
   "Watch Along"
 ];
 
-type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league";
+type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league" | "mls-2026";
 
 type CachedHighlight = {
   id: string;
@@ -138,7 +139,7 @@ function makeHighlight(input: {
   const forceExternal = input.forceExternal === true;
   const embeddable = forceExternal ? false : input.embeddable;
   const watchUrl = `https://www.youtube.com/watch?v=${input.videoId}`;
-  const hrefBase = input.category === "fifa-world-cup-2026" ? "/highlights/fifa-world-cup-2026" : "/highlights/uefa-champions-league";
+  const hrefBase = input.category === "fifa-world-cup-2026" ? "/highlights/fifa-world-cup-2026" : input.category === "mls-2026" ? "/highlights/mls-2026" : "/highlights/uefa-champions-league";
   const internalHref = `${hrefBase}/${createSlug(title)}-${input.videoId}`;
 
   return {
@@ -230,6 +231,23 @@ async function fetchPlaylistPage(apiKey: string, pageToken?: string) {
   return data;
 }
 
+async function fetchMlsPlaylistItems(apiKey: string) {
+  const url = new URL("https://youtube.googleapis.com/youtube/v3/playlistItems");
+  url.searchParams.set("part", "snippet");
+  url.searchParams.set("playlistId", mls2026PlaylistId);
+  url.searchParams.set("maxResults", "10");
+  url.searchParams.set("key", apiKey);
+
+  const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  const data = (await response.json()) as YouTubePlaylistResponse;
+  console.log("[YouTube Highlights] MLS playlist", {
+    requestUrl: url.toString().replace(/([?&]key=)[^&]+/, "$1[REDACTED]"),
+    responseStatus: response.status,
+    itemsReturned: data.items?.length ?? 0
+  });
+  return data.items ?? [];
+}
+
 async function fetchUefaPlaylistItems(apiKey: string) {
   const items: YouTubePlaylistItem[] = [];
   let pageToken: string | undefined;
@@ -270,18 +288,33 @@ function uniqueByVideoId(items: CachedHighlight[]) {
   return Array.from(unique.values()).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 }
 
+function highlightsByCategory(cache: HighlightCache, category: HighlightCategory) {
+  return cache.highlights.filter((item) => item.category === category);
+}
+
 async function syncHighlights() {
   const cache = await readCache();
   const apiKey = process.env.YOUTUBE_API_KEY;
   const lastRefresh = cache.lastRefreshAt ? Date.parse(cache.lastRefreshAt) : 0;
-  if (cache.version === cacheVersion && cache.highlights.length > 0 && Date.now() - lastRefresh < oneHourMs) return cache;
+  const cachedFifaHighlights = highlightsByCategory(cache, "fifa-world-cup-2026");
+  const cachedUefaHighlights = highlightsByCategory(cache, "uefa-champions-league");
+  const cachedMlsHighlights = highlightsByCategory(cache, "mls-2026");
+  const cacheHasRequiredCategories = cachedFifaHighlights.length > 0 && cachedUefaHighlights.length > 0 && cachedMlsHighlights.length > 0;
+  if (cache.version === cacheVersion && cacheHasRequiredCategories && Date.now() - lastRefresh < highlightRefreshMs) return cache;
   if (!apiKey) return cache;
 
   const fifaItems = (await fetchFifaItems(apiKey)).filter((item) => isFifaWorldCupTitle(item.snippet?.title?.trim() ?? ""));
   const uefaItems = (await fetchUefaPlaylistItems(apiKey)).filter((item) => isUefaChampionsLeagueTitle(item.snippet?.title?.trim() ?? ""));
+  let mlsItems: YouTubePlaylistItem[] = [];
+  try {
+    mlsItems = await fetchMlsPlaylistItems(apiKey);
+  } catch (error) {
+    console.error("[YouTube Highlights] MLS playlist failed", error);
+  }
   const allVideoIds = Array.from(new Set([
     ...fifaItems.map((item) => item.id?.videoId),
-    ...uefaItems.map((item) => item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId)
+    ...uefaItems.map((item) => item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId),
+    ...mlsItems.map((item) => item.snippet?.resourceId?.videoId)
   ].filter((id): id is string => Boolean(id))));
   const embeddability = await fetchVideoEmbeddability(allVideoIds, apiKey);
 
@@ -301,17 +334,27 @@ async function syncHighlights() {
     return highlight ? [highlight] : [];
   });
 
-  const preservedOther = cache.version === cacheVersion ? cache.highlights.filter((item) => item.category !== "fifa-world-cup-2026" && item.category !== "uefa-champions-league") : [];
+  const mlsHighlights = mlsItems.flatMap((item) => {
+    const videoId = item.snippet?.resourceId?.videoId;
+    if (!videoId || embeddability.get(videoId) !== true) return [];
+    const highlight = makeHighlight({ videoId, snippet: item.snippet, embeddable: true, category: "mls-2026", source: item.snippet?.channelTitle ?? "MLS" });
+    return highlight ? [highlight] : [];
+  });
+
+  const preservedOther = cache.version === cacheVersion ? cache.highlights.filter((item) => item.category !== "fifa-world-cup-2026" && item.category !== "uefa-champions-league" && item.category !== "mls-2026") : [];
+  const nextFifaHighlights = uniqueByVideoId([...fifaHighlights, ...cachedFifaHighlights]);
+  const nextUefaHighlights = uniqueByVideoId([...uefaHighlights, ...cachedUefaHighlights]);
+  const nextMlsHighlights = uniqueByVideoId([...mlsHighlights, ...cachedMlsHighlights]).slice(0, 10);
   return writeCache({
     lastRefreshAt: new Date().toISOString(),
-    highlights: uniqueByVideoId([...preservedOther, ...fifaHighlights, ...uefaHighlights])
+    highlights: uniqueByVideoId([...preservedOther, ...nextFifaHighlights, ...nextUefaHighlights, ...nextMlsHighlights])
   });
 }
-
 export async function GET() {
   const cache = await syncHighlights();
   const fifaWorldCup2026 = cache.highlights.filter((item) => item.category === "fifa-world-cup-2026").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
   const uefaChampionsLeague = cache.highlights.filter((item) => item.category === "uefa-champions-league").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const mls2026 = cache.highlights.filter((item) => item.category === "mls-2026").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 10);
 
   return NextResponse.json({
     source: "Official football highlights",
@@ -319,6 +362,12 @@ export async function GET() {
     lastRefreshAt: cache.lastRefreshAt,
     highlights: fifaWorldCup2026,
     fifaWorldCup2026,
-    uefaChampionsLeague
+    uefaChampionsLeague,
+    mls2026
   });
 }
+
+
+
+
+

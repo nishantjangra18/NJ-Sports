@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -9,7 +9,7 @@ type HorizontalCarouselProps = {
   className?: string;
 };
 
-const edgeTolerance = 2;
+const edgeTolerance = 28;
 
 export function HorizontalCarousel({ title, children, className = "no-scrollbar flex gap-4 overflow-x-auto scroll-smooth pb-4 max-md:snap-x max-md:snap-mandatory" }: HorizontalCarouselProps) {
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -73,7 +73,7 @@ export function HorizontalCarousel({ title, children, className = "no-scrollbar 
           <ChevronLeft className="h-5 w-5" />
         </button>
       ) : null}
-      <div ref={rowRef} className={className}>
+      <div ref={rowRef} className={className} style={{ margin: "-1.5rem -0.75rem", padding: "1.5rem 0.75rem" }}>
         {children}
       </div>
       {canScrollRight ? (

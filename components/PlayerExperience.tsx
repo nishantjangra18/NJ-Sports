@@ -1,19 +1,21 @@
-"use client";
+﻿"use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, BarChart3, Check, Cloud, Heart, Maximize, Minimize } from "lucide-react";
 import type HlsInstance from "hls.js";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { MatchCenterPanel } from "@/components/MatchCenterPanel";
 import { Shell } from "@/components/Shell";
 import { cn } from "@/lib/utils";
+import { getResumeTimeFromSearch, upsertContinueWatchingItem } from "@/lib/continueWatching";
 import { useStreams, useWatchRouteTarget } from "@/hooks/useStreamedData";
 import type { StreamedStream } from "@/services/api/types";
 
 const iframeLoadTimeoutMs = 12000;
 type PlayerRenderMode = "html5-video" | "hls-js" | "video-js" | "iframe" | "third-party";
 type HlsPlayer = HlsInstance;
+type ScreenOrientationLock = "any" | "natural" | "landscape" | "portrait" | "portrait-primary" | "portrait-secondary" | "landscape-primary" | "landscape-secondary";
 
 function streamKey(stream: StreamedStream, index: number) {
   return `${stream.id}-${index}-${stream.embedUrl}`;
@@ -94,28 +96,20 @@ function getPlayerDiagnostics(stream: StreamedStream): { renderMode: PlayerRende
   return { renderMode: "third-party", reason: "Response URL is not a direct .mp4/.m3u8 media asset", crossOriginEmbed: true };
 }
 
-function logAutoplayError(stage: string, error: unknown) {
-  const browserError = error instanceof DOMException || error instanceof Error
-    ? { name: error.name, message: error.message, stack: error.stack }
-    : error;
-  console.error(`[streamed.pk] autoplay failed during ${stage}`, browserError);
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 }
 
-function findAccessibleVideo(container: HTMLElement | null) {
-  if (!container) return null;
-  const localVideo = container.querySelector("video");
-  if (localVideo) return localVideo;
+function isPortraitViewport() {
+  return typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+}
 
-  for (const frame of Array.from(container.querySelectorAll("iframe"))) {
-    try {
-      const frameVideo = frame.contentDocument?.querySelector("video") ?? null;
-      if (frameVideo) return frameVideo;
-    } catch {
-      console.warn("[streamed.pk] iframe video is cross-origin; autoplay cannot be forced from NJ Sports.");
-    }
-  }
-
-  return null;
+function getScreenOrientation() {
+  if (typeof screen === "undefined" || !("orientation" in screen)) return null;
+  return screen.orientation as ScreenOrientation & {
+    lock?: (orientation: ScreenOrientationLock) => Promise<void>;
+    unlock?: () => void;
+  };
 }
 
 function PlayerSkeleton() {
@@ -130,7 +124,7 @@ function PlayerSkeleton() {
   );
 }
 
-function NativeStreamPlayer({ stream, title, onReady, onError }: { stream: StreamedStream; title: string; onReady: () => void; onError: (message?: string) => void }) {
+function NativeStreamPlayer({ stream, title, startTime = 0, onReady, onError, onProgress }: { stream: StreamedStream; title: string; startTime?: number; onReady: () => void; onError: (message?: string) => void; onProgress?: (watchedTime: number, duration: number) => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const readyRef = useRef(false);
   const hlsUrl = isHlsUrl(stream.embedUrl);
@@ -140,11 +134,8 @@ function NativeStreamPlayer({ stream, title, onReady, onError }: { stream: Strea
     if (!video) return;
 
     readyRef.current = false;
-    video.autoplay = true;
-    video.muted = true;
-    video.defaultMuted = true;
     video.playsInline = true;
-    video.preload = "auto";
+    video.preload = "metadata";
 
     let destroyed = false;
     let hls: HlsPlayer | null = null;
@@ -196,14 +187,22 @@ function NativeStreamPlayer({ stream, title, onReady, onError }: { stream: Strea
     };
   }, [hlsUrl, onError, onReady, stream.embedUrl]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || startTime <= 0) return;
+    const seekToResumeTime = () => {
+      if (video.duration > startTime) video.currentTime = startTime;
+    };
+    video.addEventListener("loadedmetadata", seekToResumeTime, { once: true });
+    return () => video.removeEventListener("loadedmetadata", seekToResumeTime);
+  }, [startTime, stream.embedUrl]);
+
   return (
     <video
       key={stream.embedUrl}
       ref={videoRef}
       title={title}
       className="absolute inset-0 h-full w-full bg-black object-contain"
-      autoPlay
-      muted
       playsInline
       controls
       onCanPlay={() => {
@@ -212,6 +211,9 @@ function NativeStreamPlayer({ stream, title, onReady, onError }: { stream: Strea
       onLoadedMetadata={() => {
         if (!hlsUrl && videoRef.current?.readyState) onReady();
       }}
+      onTimeUpdate={(event) => onProgress?.(event.currentTarget.currentTime, event.currentTarget.duration)}
+      onPause={(event) => onProgress?.(event.currentTarget.currentTime, event.currentTarget.duration)}
+      onEnded={() => onProgress?.(Number.POSITIVE_INFINITY, 1)}
       onError={() => onError("Unable to load selected server.")}
     />
   );
@@ -235,12 +237,14 @@ function PlayerIconButton({ label, onClick, active, children }: { label: string;
 
 export function PlayerExperience({ slug }: { slug: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const target = useWatchRouteTarget(slug);
   const streams = useStreams(target.source, target.id);
   const playerContainerRef = useRef<HTMLElement | null>(null);
-  const mediaElementRef = useRef<HTMLVideoElement | null>(null);
   const hideControlsTimer = useRef<number | null>(null);
   const iframeLoadTimer = useRef<number | null>(null);
+  const iframeWatchedTimeRef = useRef(0);
+  const lastProgressSaveRef = useRef(0);
   const [activeStreamIndex, setActiveStreamIndex] = useState(0);
   const [previousWorkingIndex, setPreviousWorkingIndex] = useState<number | null>(null);
   const [recommendedIndex, setRecommendedIndex] = useState<number | null>(null);
@@ -251,6 +255,8 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const [favorite, setFavorite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mobileCinemaMode, setMobileCinemaMode] = useState(false);
+  const [mobileLandscapeSimulated, setMobileLandscapeSimulated] = useState(false);
   const [matchCenterOpen, setMatchCenterOpen] = useState(false);
   const streamList = streams.data ?? [];
   const activeStream = streamList[activeStreamIndex] ?? streamList[0];
@@ -259,36 +265,24 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const activeLabel = activeStream ? streamLabel(activeStream, resolvedActiveIndex, recommendedIndex) : "Stream";
   const activeDiagnostics = activeStream ? getPlayerDiagnostics(activeStream) : null;
   const title = target.title ?? "Live Stream";
+  const resumeTime = getResumeTimeFromSearch(searchParams.toString());
   const isLiveMatch = target.live === true;
   const isPlayerLoading = target.isResolving || streams.isLoading || (!activeStream && Boolean(target.source && target.id));
 
-  function syncMediaElement() {
-    const nextMedia = findAccessibleVideo(playerContainerRef.current);
-    mediaElementRef.current = nextMedia;
-    return nextMedia;
-  }
-
-  async function attemptAutoplay() {
-    const media = syncMediaElement();
-    if (!media) {
-      if (activeDiagnostics?.crossOriginEmbed) {
-        console.warn("[streamed.pk] autoplay skipped: the selected player is cross-origin, so NJ Sports cannot call video.play() inside it.", { stream: activeStream });
-      }
-      return;
-    }
-
-    media.autoplay = true;
-    media.muted = true;
-    media.defaultMuted = true;
-    media.playsInline = true;
-
-    try {
-      await media.play();
-      console.info("[streamed.pk] autoplay succeeded", { muted: media.muted, playsInline: media.playsInline, url: activeStream?.embedUrl });
-    } catch (error) {
-      logAutoplayError("muted video.play()", error);
-      setToast("Tap play to start stream");
-    }
+  function saveContinueProgress(watchedTime: number, duration: number) {
+    if (!activeStream || !target.source || !target.id) return;
+    const now = Date.now();
+    if (watchedTime !== Number.POSITIVE_INFINITY && now - lastProgressSaveRef.current < 2500) return;
+    lastProgressSaveRef.current = now;
+    upsertContinueWatchingItem({
+      videoId: `stream:${target.source}:${target.id}`,
+      title,
+      thumbnail: target.image ?? "/brand/football-placeholder.svg",
+      url: `/watch/${encodeURIComponent(slug)}`,
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 7200,
+      watchedTime: watchedTime === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : Math.max(0, watchedTime),
+      lastWatchedAt: now
+    });
   }
 
   useEffect(() => {
@@ -304,6 +298,32 @@ export function PlayerExperience({ slug }: { slug: string }) {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     handleFullscreenChange();
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileCinemaMode) return;
+
+    const syncMobileOrientation = () => {
+      setMobileLandscapeSimulated(isMobileViewport() && isPortraitViewport());
+    };
+
+    syncMobileOrientation();
+    window.addEventListener("resize", syncMobileOrientation);
+    window.addEventListener("orientationchange", syncMobileOrientation);
+    return () => {
+      window.removeEventListener("resize", syncMobileOrientation);
+      window.removeEventListener("orientationchange", syncMobileOrientation);
+    };
+  }, [mobileCinemaMode]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        getScreenOrientation()?.unlock?.();
+      } catch {
+        // Some mobile browsers throw when orientation was not locked by this page.
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -326,13 +346,28 @@ export function PlayerExperience({ slug }: { slug: string }) {
       url: activeStream.embedUrl,
       raw: activeStream.raw ?? activeStream
     });
-    if (activeDiagnostics.crossOriginEmbed) {
-      console.warn("[streamed.pk] autoplay cannot be forced for iframe/embed players because the provider player is cross-origin.", { url: activeStream.embedUrl });
-    }
   }, [activeDiagnostics, activeKey, activeStream]);
 
   useEffect(() => {
+    iframeWatchedTimeRef.current = resumeTime;
+  }, [activeKey, resumeTime]);
+
+  useEffect(() => {
+    if (!activeStream || !activeDiagnostics) return;
+    if (activeDiagnostics.renderMode === "html5-video" || activeDiagnostics.renderMode === "hls-js") return;
+    const timer = window.setInterval(() => {
+      iframeWatchedTimeRef.current += 5;
+      saveContinueProgress(iframeWatchedTimeRef.current, 7200);
+    }, 5000);
+    return () => {
+      window.clearInterval(timer);
+      saveContinueProgress(iframeWatchedTimeRef.current, 7200);
+    };
+  }, [activeDiagnostics, activeKey, activeStream, resumeTime]);
+
+  useEffect(() => {
     if (!activeStream) return;
+    void enterMobileCinemaMode();
     setSwitching(true);
     if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
     iframeLoadTimer.current = window.setTimeout(() => handleStreamFailure("Stream did not respond."), iframeLoadTimeoutMs);
@@ -377,6 +412,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
   function handleStreamReady() {
     if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
+    void enterMobileCinemaMode();
     setSwitching(false);
     setPreviousWorkingIndex(resolvedActiveIndex);
     setFailedKeys((current) => {
@@ -385,7 +421,6 @@ export function PlayerExperience({ slug }: { slug: string }) {
       return next;
     });
     setRecommendedIndex((current) => current ?? resolvedActiveIndex);
-    window.setTimeout(() => void attemptAutoplay(), 0);
   }
 
   function handleStreamFailure(message = "Unable to load selected server.") {
@@ -412,9 +447,83 @@ export function PlayerExperience({ slug }: { slug: string }) {
     });
   }
 
+  async function enterMobileCinemaMode() {
+    if (!isMobileViewport()) return;
+
+    const container = playerContainerRef.current;
+    setMobileCinemaMode(true);
+    setMatchCenterOpen(false);
+    showControlsTemporarily();
+
+    if (container && document.fullscreenElement !== container) {
+      try {
+        await container.requestFullscreen();
+      } catch {
+        // Fullscreen often requires a fresh tap gesture; the rotated fallback still gives mobile cinema mode.
+      }
+    }
+
+    try {
+      const orientation = getScreenOrientation();
+      if (!orientation?.lock) throw new Error("Orientation lock unavailable");
+      await orientation.lock("landscape");
+      setMobileLandscapeSimulated(false);
+    } catch {
+      setMobileLandscapeSimulated(isPortraitViewport());
+    }
+  }
+
+  async function exitMobileCinemaMode() {
+    setMobileCinemaMode(false);
+    setMobileLandscapeSimulated(false);
+    try {
+      getScreenOrientation()?.unlock?.();
+    } catch {
+      // Ignore browser-specific orientation unlock failures.
+    }
+
+    if (document.fullscreenElement === playerContainerRef.current) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // Browser already handled fullscreen exit.
+      }
+    }
+  }
+
+  async function handleBack() {
+    if (isMobileViewport()) await exitMobileCinemaMode();
+    router.back();
+  }
+
+  function handlePlayerTap(event: PointerEvent<HTMLElement>) {
+    if (!isMobileViewport()) return;
+    const targetElement = event.target instanceof HTMLElement ? event.target : null;
+    if (targetElement?.closest("button, a, [role=menu], video")) return;
+
+    if (hideControlsTimer.current) window.clearTimeout(hideControlsTimer.current);
+    setControlsVisible((visible) => {
+      const nextVisible = !visible;
+      if (nextVisible && !serverMenuOpen) {
+        hideControlsTimer.current = window.setTimeout(() => setControlsVisible(false), 3500);
+      }
+      return nextVisible;
+    });
+  }
+
   async function toggleFullscreen() {
     const container = playerContainerRef.current;
     if (!container) return;
+
+    if (isMobileViewport()) {
+      if (document.fullscreenElement === container || mobileCinemaMode) {
+        await exitMobileCinemaMode();
+        return;
+      }
+      await enterMobileCinemaMode();
+      return;
+    }
+
     if (document.fullscreenElement === container) {
       await document.exitFullscreen();
       return;
@@ -427,13 +536,25 @@ export function PlayerExperience({ slug }: { slug: string }) {
       <section
         ref={playerContainerRef}
         onMouseMove={showControlsTemporarily}
+        onPointerUp={handlePlayerTap}
         onFocus={showControlsTemporarily}
         className="fixed inset-0 h-screen w-screen overflow-hidden bg-black text-white"
       >
         <motion.div
-          animate={{ width: matchCenterOpen && isLiveMatch ? "calc(100% - min(420px, 100vw))" : "100%" }}
+          animate={{
+            width: mobileLandscapeSimulated
+              ? "100dvh"
+              : mobileCinemaMode || !(matchCenterOpen && isLiveMatch)
+                ? "100%"
+                : "calc(100% - min(420px, 100vw))"
+          }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute inset-y-0 left-0 overflow-hidden bg-black"
+          className={cn(
+            "absolute overflow-hidden bg-black",
+            mobileLandscapeSimulated
+              ? "left-1/2 top-1/2 h-[100dvw] origin-center -translate-x-1/2 -translate-y-1/2 rotate-90"
+              : "inset-y-0 left-0"
+          )}
         >
         {activeStream && activeDiagnostics ? (
           activeDiagnostics.renderMode === "html5-video" || activeDiagnostics.renderMode === "hls-js" ? (
@@ -441,15 +562,17 @@ export function PlayerExperience({ slug }: { slug: string }) {
               key={activeKey}
               stream={activeStream}
               title={activeLabel}
+              startTime={resumeTime}
               onReady={handleStreamReady}
               onError={handleStreamFailure}
+              onProgress={saveContinueProgress}
             />
           ) : (
             <iframe
               key={activeKey}
               src={activeStream.embedUrl}
               title={activeLabel}
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allow="fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
               onLoad={handleStreamReady}
@@ -479,7 +602,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
         {switching ? (
           <div className="absolute inset-0 z-20 grid place-items-center bg-black/60 backdrop-blur-sm">
-            <div className="h-14 w-14 animate-pulse rounded-full border border-white/20 bg-white/10" />
+            <div className="text-center"><div className="mx-auto h-14 w-14 animate-pulse rounded-full border border-white/20 bg-white/10" /><p className="mt-4 text-sm font-semibold text-white/72">Loading stream...</p></div>
           </div>
         ) : null}
 
@@ -491,10 +614,10 @@ export function PlayerExperience({ slug }: { slug: string }) {
           ) : null}
         </AnimatePresence>
 
-        <motion.div animate={{ opacity: controlsVisible || serverMenuOpen ? 1 : 0 }} transition={{ duration: 0.25 }} className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/78 via-black/32 to-transparent px-5 pb-16 pt-5 sm:px-8">
+        <motion.div animate={{ opacity: controlsVisible || serverMenuOpen ? 1 : 0 }} transition={{ duration: 0.25 }} className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/78 via-black/32 to-transparent px-5 pb-16 pt-5 sm:px-8 max-md:px-4 max-md:pb-20 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
-              <PlayerIconButton label="Back" onClick={() => router.back()}>
+              <PlayerIconButton label="Back" onClick={() => void handleBack()}>
                 <ArrowLeft className="h-5 w-5" />
               </PlayerIconButton>
               <div className="min-w-0">
@@ -542,21 +665,22 @@ export function PlayerExperience({ slug }: { slug: string }) {
                   ) : null}
                 </AnimatePresence>
               </div>
-              {isLiveMatch ? (
+              {isLiveMatch && !mobileCinemaMode ? (
                 <PlayerIconButton label="Match Center" active={matchCenterOpen} onClick={() => setMatchCenterOpen((open) => !open)}>
                   <BarChart3 className="h-5 w-5" />
                 </PlayerIconButton>
               ) : null}
 
-              <PlayerIconButton label="Fullscreen" active={isFullscreen} onClick={() => void toggleFullscreen()}>
+              <PlayerIconButton label="Fullscreen" active={isFullscreen || mobileCinemaMode} onClick={() => void toggleFullscreen()}>
                 {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
               </PlayerIconButton>
             </div>
           </div>
         </motion.div>
         </motion.div>
-        <MatchCenterPanel open={matchCenterOpen && isLiveMatch} matchId={target.fixtureId} onClose={() => setMatchCenterOpen(false)} />
+        <MatchCenterPanel open={!mobileCinemaMode && matchCenterOpen && isLiveMatch} matchId={target.fixtureId} onClose={() => setMatchCenterOpen(false)} />
       </section>
     </Shell>
   );
 }
+

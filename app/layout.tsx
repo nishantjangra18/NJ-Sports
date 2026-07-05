@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { brand } from "@/lib/brand";
@@ -40,10 +40,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geist.variable} font-sans antialiased`} suppressHydrationWarning><AppProviders>{children}</AppProviders></body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geist.variable} font-sans antialiased`} suppressHydrationWarning><script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem(\"app_theme\");document.documentElement.setAttribute(\"data-theme\",t===\"fifa\"?\"fifa\":\"default\")}catch(e){document.documentElement.setAttribute(\"data-theme\",\"default\")}" }} /><AppProviders>{children}</AppProviders></body>
     </html>
   );
 }
+
 
 

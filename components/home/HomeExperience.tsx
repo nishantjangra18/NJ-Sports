@@ -1,28 +1,34 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { ContentRow, ContentRowSkeleton } from "@/components/ContentRow";
+import { ContinueWatchingSection } from "@/components/ContinueWatchingSection";
+import { ForYouSection } from "@/components/ForYouSection";
 import { Hero } from "@/components/Hero";
 import { HighlightRow } from "@/components/HighlightRow";
 import { LiveScoresSection } from "@/components/LiveScoresSection";
+import { MlsHighlightsSection } from "@/components/MlsHighlightsSection";
 import { Shell } from "@/components/Shell";
 import { useHighlightCompetitions, useHomeData } from "@/hooks/useStreamedData";
 import { highlightToHeroCard } from "@/services/api/youtube";
+
 export function HomeExperience() {
   const { liveMatches, rows, isLoading, isError, retry } = useHomeData();
   const competitions = useHighlightCompetitions();
   const liveRow = rows.find((row) => row.title === "Live Football");
-  const latestHighlightCards = useMemo(() => (competitions.data ?? [])
-    .flatMap((competition) => competition.items)
+  const highlightItems = useMemo(() => (competitions.data ?? []).flatMap((competition) => competition.items), [competitions.data]);
+  const latestHighlightCards = useMemo(() => [...highlightItems]
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
     .slice(0, 4)
-    .map(highlightToHeroCard), [competitions.data]);
+    .map(highlightToHeroCard), [highlightItems]);
   const heroSlides = useMemo(() => (liveMatches.length > 0 ? [liveMatches[0], ...latestHighlightCards.slice(0, 3)] : latestHighlightCards), [latestHighlightCards, liveMatches]);
   const heroIsLoading = heroSlides.length === 0 && (isLoading || competitions.isLoading);
+  const forYouSection = <ForYouSection liveMatches={liveMatches} fallbackMatches={liveRow?.items ?? []} highlights={highlightItems} />;
 
   return (
     <Shell>
       <Hero slides={heroSlides} isLoading={heroIsLoading} />
+      <ContinueWatchingSection />
       <LiveScoresSection liveMatches={liveMatches} />
       <div className="pb-12 pt-5 max-md:pt-1">
         {isError ? (
@@ -45,15 +51,19 @@ export function HomeExperience() {
           <>
             <div className="hidden md:block">
               {liveRow ? <ContentRow title={liveRow.title} items={liveRow.items} /> : null}
+              {forYouSection}
               {(competitions.data ?? []).map((competition) => (
                 <HighlightRow key={competition.id} title={competition.title} items={competition.items} variant="carousel" seeAllHref={competition.href} />
               ))}
+              <MlsHighlightsSection />
             </div>
             <div className="md:hidden">
               {liveRow ? <ContentRow title={liveRow.title} items={liveRow.items} /> : null}
+              {forYouSection}
               {(competitions.data ?? []).map((competition) => (
                 <HighlightRow key={competition.id} title={competition.title} items={competition.items} variant="carousel" seeAllHref={competition.href} />
               ))}
+              <MlsHighlightsSection />
             </div>
           </>
         )}

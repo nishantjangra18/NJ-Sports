@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -86,5 +86,344 @@ a {
   html,
   body {
     overflow-x: hidden;
+  }
+}
+:root[data-theme="default"] {
+  --app-bg: #070707;
+  --app-card: rgba(255, 255, 255, 0.055);
+  --app-border: rgba(255, 255, 255, 0.1);
+  --app-accent: #ef4444;
+  --app-text-glow: none;
+}
+
+:root[data-theme="fifa"] {
+  --app-bg: #050713;
+  --app-card: rgba(8, 12, 31, 0.62);
+  --app-border: rgba(255, 255, 255, 0.18);
+  --app-accent: #00d4ff;
+  --app-text-glow: 0 0 14px rgba(0, 212, 255, 0.24), 0 0 28px rgba(255, 0, 116, 0.12);
+}
+
+:root[data-theme="fifa"],
+:root[data-theme="fifa"] body {
+  background-color: #050713;
+  background-image:
+    linear-gradient(180deg, rgba(5, 7, 19, 0.5) 0%, rgba(5, 7, 19, 0.78) 52%, rgba(5, 7, 19, 0.9) 100%),
+    radial-gradient(circle at 78% 18%, rgba(255, 184, 0, 0.2), transparent 24%),
+    radial-gradient(circle at 14% 34%, rgba(0, 212, 255, 0.16), transparent 24%),
+    url("/images/fifa-world-cup-theme-hero.png"),
+    linear-gradient(135deg, #050713 0%, #070b1d 48%, #040711 100%);
+  background-attachment: fixed, fixed, fixed, fixed, fixed;
+  background-position: center, right top, left center, center top, center;
+  background-repeat: no-repeat;
+  background-size: cover, 90vw 90vh, 70vw 80vh, cover, cover;
+}
+
+:root[data-theme="fifa"] body::before,
+:root[data-theme="fifa"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+:root[data-theme="fifa"] body::before {
+  background:
+    linear-gradient(128deg, transparent 0 18%, rgba(255, 0, 76, 0.16) 30%, rgba(255, 184, 0, 0.18) 38%, rgba(0, 212, 255, 0.14) 48%, rgba(124, 255, 0, 0.08) 56%, transparent 68%),
+    linear-gradient(24deg, transparent 0 44%, rgba(255, 184, 0, 0.12) 50%, rgba(255, 0, 76, 0.12) 56%, transparent 68%),
+    radial-gradient(ellipse at 82% 30%, rgba(255, 0, 116, 0.18), transparent 34%),
+    radial-gradient(ellipse at 24% 72%, rgba(0, 212, 255, 0.14), transparent 30%);
+  opacity: 0.9;
+  filter: saturate(1.18);
+}
+
+:root[data-theme="fifa"] body::after {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 0.7px, transparent 0.7px);
+  background-size: 4px 4px;
+  opacity: 0.07;
+}
+
+:root[data-theme="fifa"] main,
+:root[data-theme="fifa"] section {
+  text-shadow: var(--app-text-glow);
+}
+
+:root[data-theme="fifa"] .bg-studio-bg,
+:root[data-theme="fifa"] .bg-\[\#050507\],
+:root[data-theme="fifa"] .bg-\[\#070707\],
+:root[data-theme="fifa"] .bg-\[\#0b0f1a\] {
+  background: transparent !important;
+}
+:root[data-theme="fifa"] .fifa-home-surface,
+:root[data-theme="fifa"] .fifa-worldcup-surface,
+:root[data-theme="fifa"] .fifa-worldcup-surface main {
+  background: #050713 !important;
+}
+
+
+:root[data-theme="fifa"] aside {
+  background:
+    linear-gradient(180deg, rgba(7, 10, 31, 0.94), rgba(5, 7, 19, 0.86)) !important;
+  border-right-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 18px 0 48px rgba(0, 0, 0, 0.44), 0 0 28px rgba(0, 212, 255, 0.08) !important;
+}
+
+:root[data-theme="fifa"] aside a[aria-current="page"],
+:root[data-theme="fifa"] aside button[aria-current="page"] {
+  background: linear-gradient(90deg, rgba(255, 0, 76, 0.24), rgba(0, 212, 255, 0.08));
+}
+
+:root[data-theme="fifa"] nav[aria-label="Mobile navigation"] {
+  background: rgba(5, 7, 19, 0.9) !important;
+  border-top-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 -16px 45px rgba(0, 0, 0, 0.42), 0 -1px 18px rgba(0, 212, 255, 0.16) !important;
+}
+
+:root[data-theme="fifa"] .bg-studio-card,
+:root[data-theme="fifa"] .settings-hero-card,
+:root[data-theme="fifa"] article[class*="bg-white/"],
+:root[data-theme="fifa"] section [class*="bg-white/"],
+:root[data-theme="fifa"] section [class*="bg-studio-card"] {
+  background:
+    linear-gradient(135deg, rgba(255, 0, 76, 0.08), rgba(0, 212, 255, 0.08)),
+    rgba(8, 12, 31, 0.68) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 184, 0, 0.1), 0 0 34px rgba(0, 212, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: blur(18px);
+}
+
+:root[data-theme="fifa"] article[class*="bg-white/"]::before,
+:root[data-theme="fifa"] section [class*="bg-studio-card"]::before {
+  background: linear-gradient(90deg, #ff004c, #ffb800, #00d4ff, #7cff00) !important;
+  opacity: 0.78;
+}
+
+:root[data-theme="fifa"] [class*="w-[318px]"][class*="h-[112px]"] {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 184, 0, 0.24), transparent 35%),
+    radial-gradient(circle at 98% 100%, rgba(0, 212, 255, 0.28), transparent 34%),
+    linear-gradient(135deg, rgba(255, 0, 76, 0.2), rgba(9, 14, 40, 0.82) 42%, rgba(0, 91, 255, 0.2)) !important;
+  border-color: rgba(255, 184, 0, 0.54) !important;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 0, 116, 0.34), 0 0 28px rgba(0, 212, 255, 0.16) !important;
+}
+:root[data-theme="fifa"] .world-cup-fixture-card {
+  background:
+    linear-gradient(125deg, rgba(255, 71, 36, 0.72) 0%, rgba(255, 184, 0, 0.56) 22%, rgba(14, 180, 92, 0.5) 45%, rgba(0, 126, 255, 0.58) 70%, rgba(172, 45, 255, 0.48) 100%),
+    rgba(7, 11, 32, 0.72) !important;
+  border-color: rgba(255, 229, 128, 0.56) !important;
+  box-shadow: 0 20px 58px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(0, 212, 255, 0.22), 0 0 34px rgba(255, 184, 0, 0.13) !important;
+}
+
+
+:root[data-theme="fifa"] button:not(:disabled):hover,
+:root[data-theme="fifa"] a:hover {
+  filter: drop-shadow(0 0 14px rgba(0, 212, 255, 0.28));
+}
+
+:root[data-theme="fifa"] button[class*="bg-white"],
+:root[data-theme="fifa"] a[class*="bg-white"] {
+  background: linear-gradient(135deg, #ffb800, #ff004c 52%, #2563eb) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 34px rgba(255, 0, 76, 0.28), 0 0 22px rgba(0, 212, 255, 0.18) !important;
+}
+
+:root[data-theme="fifa"] .settings-page button:not(:disabled):hover {
+  background-image: linear-gradient(135deg, rgba(255, 0, 76, 0.18), rgba(255, 184, 0, 0.16), rgba(0, 212, 255, 0.2), rgba(124, 255, 0, 0.16));
+}
+
+
+
+.fifa-worldcup-hero {
+  background: #050713;
+}
+
+.fifa-worldcup-hero-scene {
+  background-image: linear-gradient(90deg, rgba(5, 7, 19, 0.5), rgba(5, 7, 19, 0.08)), url("/images/fifa-world-cup-theme-hero.png");
+  background-position: center;
+  background-size: cover;
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.fifa-worldcup-hero-ribbons {
+  background:
+    linear-gradient(118deg, transparent 0 46%, rgba(255, 0, 76, 0.22) 50%, rgba(255, 184, 0, 0.18) 54%, rgba(0, 212, 255, 0.16) 58%, transparent 66%),
+    radial-gradient(ellipse at 74% 28%, rgba(255, 184, 0, 0.16), transparent 26%);
+  opacity: 0.74;
+  filter: saturate(1.18);
+}
+
+.fifa-worldcup-trophy-mark {
+  display: none;
+}
+
+.fifa-worldcup-kicker {
+  color: #ffef9a;
+  background: rgba(255, 184, 0, 0.12);
+  border: 1px solid rgba(255, 184, 0, 0.42);
+  box-shadow: 0 0 22px rgba(255, 184, 0, 0.12);
+}
+
+.fifa-hero-primary {
+  background: linear-gradient(135deg, #ffb800 0%, #ff004c 48%, #265dff 100%);
+  box-shadow: 0 16px 36px rgba(255, 0, 76, 0.34), 0 0 26px rgba(0, 212, 255, 0.2);
+}
+
+.fifa-hero-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.fifa-theme-card-glow {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(0, 212, 255, 0.22), transparent 32%),
+    radial-gradient(circle at 100% 100%, rgba(124, 255, 0, 0.18), transparent 30%),
+    linear-gradient(135deg, rgba(255, 0, 76, 0.12), rgba(255, 184, 0, 0.1));
+}
+
+@media (max-width: 767px) {
+  :root[data-theme="fifa"],
+  :root[data-theme="fifa"] body {
+    background-position: center, right top, left center, 74% top, center;
+  }
+
+  :root[data-theme="fifa"] .fifa-home-surface .fifa-worldcup-hero-scene {
+    background-position: 74% top;
+  }
+
+  :root[data-theme="fifa"] .fifa-home-surface .fifa-worldcup-hero-panel {
+    background: rgba(5, 7, 19, 0.42);
+    border-color: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(8px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(1.08) !important;
+  }
+
+  .fifa-worldcup-hero-ribbons {
+    opacity: 0.5;
+  }
+}
+.auth-gate-root {
+  background: #070707;
+}
+
+.auth-gate-bg {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(239, 68, 68, 0.12), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.08), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 42%, rgba(255, 255, 255, 0.025));
+}
+
+.auth-gate-accent {
+  background: linear-gradient(90deg, #ef4444, #ffffff, #ef4444);
+  opacity: 0.72;
+}
+
+.auth-gate-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(13, 13, 13, 0.82);
+}
+
+.auth-gate-card > div:first-child {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.auth-gate-badge {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.auth-gate-badge-icon {
+  color: #ef4444;
+}
+
+.auth-gate-tab-active {
+  background: #ffffff;
+  color: #000000;
+}
+
+.auth-gate-submit {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 18px 42px rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme="fifa"] .auth-gate-root {
+  background: #07070c;
+}
+
+:root[data-theme="fifa"] .auth-gate-bg {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(0, 212, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 80% 12%, rgba(255, 0, 123, 0.22), transparent 28%),
+    linear-gradient(135deg, rgba(255, 184, 0, 0.16), transparent 34%, rgba(124, 255, 0, 0.12));
+}
+
+:root[data-theme="fifa"] .auth-gate-accent {
+  background: linear-gradient(90deg, #ffb800, #ff004c, #00d4ff);
+  opacity: 1;
+}
+
+:root[data-theme="fifa"] .auth-gate-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.62);
+}
+
+:root[data-theme="fifa"] .auth-gate-badge-icon {
+  color: #ffb800;
+}
+
+:root[data-theme="fifa"] .auth-gate-tab-active {
+  background: linear-gradient(135deg, #ffb800, #ff004c 52%, #2563eb);
+  color: #ffffff;
+}
+
+:root[data-theme="fifa"] .auth-gate-submit {
+  background: linear-gradient(90deg, #ffb800, #ff004c, #255bff);
+  color: #ffffff;
+  box-shadow: 0 18px 42px rgba(255, 0, 76, 0.28);
+}
+
+@media (max-width: 767px) {
+  .auth-gate-root {
+    align-items: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .auth-gate-card {
+    width: min(100%, 360px);
+    text-align: center;
+  }
+
+  .auth-gate-card > div:first-child {
+    min-height: auto;
+    padding: 2rem 1.75rem 1.75rem;
+  }
+
+  .auth-gate-card > div:first-child > a,
+  .auth-gate-card > div:first-child > div:first-child {
+    justify-content: center;
+  }
+
+  .auth-gate-card > div:first-child .mt-16 {
+    margin-top: 2.5rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .auth-gate-badge {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .auth-gate-card h1 {
+    font-size: clamp(3rem, 13vw, 4.5rem);
+  }
+
+  .auth-gate-card form,
+  .auth-gate-card .mb-6 {
+    margin-left: auto;
+    margin-right: auto;
   }
 }

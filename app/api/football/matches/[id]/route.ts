@@ -25,7 +25,8 @@ export async function GET(_request: Request, { params }: MatchCenterRouteProps) 
       }
     });
   } catch (error) {
-    console.error("API-Football match details failed", error);
+    console.error("ESPN match details failed", error);
     return NextResponse.json({ error: "Unable to load match data" }, { status: 503 });
   }
 }
+
