@@ -1,5 +1,3 @@
-﻿import { promises as fs } from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -7,10 +5,10 @@ export const dynamic = "force-dynamic";
 const fifaChannelId = "UCpcTrCXblq78GZrTUTLWeBw";
 const uefaChampionsLeaguePlaylistId = "PLn5vww_8o5Kty1TVJXxviSL86FfeX4yFc";
 const mls2026PlaylistId = "PLcj4z4KsbIoXrLpj2pOVr_maRaxhW902-";
-const cacheDir = path.join(process.cwd(), "data", "highlight-cache");
-const cacheFile = path.join(cacheDir, "official-highlights.json");
 const highlightRefreshMs = 10 * 60 * 1000;
 const cacheVersion = 6;
+let memoryCache: HighlightCache = { version: cacheVersion, highlights: [] };
+let memoryCacheUpdatedAt = 0;
 const rejectedTitleTerms = [
   "Alt Cast",
   "Gamified",
@@ -160,22 +158,16 @@ function makeHighlight(input: {
 }
 
 async function readCache(): Promise<HighlightCache> {
-  try {
-    const raw = await fs.readFile(cacheFile, "utf8");
-    const parsed = JSON.parse(raw) as HighlightCache;
-    return { ...parsed, highlights: parsed.highlights ?? [] };
-  } catch {
-    return { highlights: [] };
-  }
+  return { ...memoryCache, highlights: memoryCache.highlights ?? [] };
 }
 
 async function writeCache(cache: HighlightCache) {
-  await fs.mkdir(cacheDir, { recursive: true });
   const unique = new Map<string, CachedHighlight>();
   for (const highlight of cache.highlights) unique.set(highlight.videoId, highlight);
   const highlights = Array.from(unique.values()).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  await fs.writeFile(cacheFile, JSON.stringify({ ...cache, version: cacheVersion, highlights }, null, 2));
-  return { ...cache, version: cacheVersion, highlights };
+  memoryCache = { ...cache, version: cacheVersion, highlights };
+  memoryCacheUpdatedAt = Date.now();
+  return memoryCache;
 }
 
 async function fetchFifaSearchPage(apiKey: string, pageToken?: string) {
@@ -350,13 +342,21 @@ async function syncHighlights() {
     highlights: uniqueByVideoId([...preservedOther, ...nextFifaHighlights, ...nextUefaHighlights, ...nextMlsHighlights])
   });
 }
-export async function GET() {
-  const cache = await syncHighlights();
-  const fifaWorldCup2026 = cache.highlights.filter((item) => item.category === "fifa-world-cup-2026").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  const uefaChampionsLeague = cache.highlights.filter((item) => item.category === "uefa-champions-league").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  const mls2026 = cache.highlights.filter((item) => item.category === "mls-2026").sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 10);
+function categoryHighlights(cache: HighlightCache, category: HighlightCategory) {
+  return cache.highlights
+    .filter((item) => item.category === category)
+    .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+}
+
+function buildHighlightsResponse(cache: HighlightCache, cached: boolean) {
+  const fifaWorldCup2026 = categoryHighlights(cache, "fifa-world-cup-2026");
+  const uefaChampionsLeague = categoryHighlights(cache, "uefa-champions-league");
+  const mls2026 = categoryHighlights(cache, "mls-2026").slice(0, 10);
 
   return NextResponse.json({
+    success: true,
+    cached,
+    data: cache.highlights,
     source: "Official football highlights",
     channelId: fifaChannelId,
     lastRefreshAt: cache.lastRefreshAt,
@@ -367,7 +367,14 @@ export async function GET() {
   });
 }
 
-
-
-
-
+export async function GET() {
+  try {
+    const beforeRefresh = memoryCacheUpdatedAt;
+    const cache = await syncHighlights();
+    return buildHighlightsResponse(cache, beforeRefresh === memoryCacheUpdatedAt);
+  } catch (error) {
+    console.error("[YouTube Highlights] safe fallback used", error);
+    const fallbackCache = await readCache();
+    return buildHighlightsResponse(fallbackCache, true);
+  }
+}
