@@ -237,6 +237,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
   }, []);
 
   const isWorldCupPage = pathname === "/world-cup-2026";
+  const isHomeOrHighlights = pathname === "/" || pathname.startsWith("/highlights");
   const fixtures = useWorldCup2026Fixtures();
   const allMatches = fixtures.data?.all ?? [];
 
@@ -321,7 +322,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
       >
         {children}
 
-        {!immersive && (
+        {!immersive && isHomeOrHighlights && (
           <footer className="w-full border-t border-white/10 bg-transparent py-8 select-none mt-16 px-6 sm:px-8 lg:px-10">
             <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] font-medium">
               <p className="text-center sm:text-left text-white/50">© 2026 NJ Sports. All rights reserved.</p>
