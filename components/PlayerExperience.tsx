@@ -253,8 +253,6 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const iframeLoadTimer = useRef<number | null>(null);
   const iframeWatchedTimeRef = useRef(0);
   const lastProgressSaveRef = useRef(0);
-  const mobileBackNavigatingRef = useRef(false);
-  const suppressFullscreenExitBackRef = useRef(false);
   const [activeStreamIndex, setActiveStreamIndex] = useState(0);
   const [previousWorkingIndex, setPreviousWorkingIndex] = useState<number | null>(null);
   const [recommendedIndex, setRecommendedIndex] = useState<number | null>(null);
@@ -306,46 +304,13 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const playerIsFullscreen = document.fullscreenElement === playerContainerRef.current;
-      setIsFullscreen(playerIsFullscreen);
-
-      if (playerIsFullscreen || !mobileCinemaMode || !isMobileStreamDevice()) return;
-      if (suppressFullscreenExitBackRef.current) {
-        suppressFullscreenExitBackRef.current = false;
-        return;
-      }
-
-      exitMobileStreamView();
+      setIsFullscreen(document.fullscreenElement === playerContainerRef.current);
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     handleFullscreenChange();
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [mobileCinemaMode]);
-
-  useEffect(() => {
-    if (!isMobileStreamDevice()) return;
-
-    const handleMobilePopState = (event: PopStateEvent) => {
-      if (mobileBackNavigatingRef.current) return;
-      event.stopImmediatePropagation();
-      setIsExitingStream(true);
-      setIsFullscreen(false);
-      setMobileCinemaMode(false);
-      setMobileLandscapeSimulated(false);
-      setActiveStreamIndex(0);
-      if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
-      try {
-        getScreenOrientation()?.unlock?.();
-      } catch {
-        // Ignore browser-specific orientation unlock failures.
-      }
-    };
-
-    window.addEventListener("popstate", handleMobilePopState);
-    return () => window.removeEventListener("popstate", handleMobilePopState);
   }, []);
-
   useEffect(() => {
     if (!mobileCinemaMode) return;
 
@@ -379,8 +344,6 @@ export function PlayerExperience({ slug }: { slug: string }) {
     setFailedKeys(new Set());
     setMatchCenterOpen(false);
     setIsExitingStream(false);
-    mobileBackNavigatingRef.current = false;
-    suppressFullscreenExitBackRef.current = false;
   }, [target.source, target.id]);
 
   useEffect(() => {
@@ -553,18 +516,11 @@ export function PlayerExperience({ slug }: { slug: string }) {
     if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
   }
 
-  function exitMobileStreamView() {
-    if (mobileBackNavigatingRef.current) return;
-    mobileBackNavigatingRef.current = true;
-    resetMobileStreamStateForExit();
-    router.back();
-  }
 
   async function handleBack(event?: MouseEvent<HTMLButtonElement>) {
     if (isMobileStreamDevice()) {
       event?.preventDefault();
       event?.stopPropagation();
-      suppressFullscreenExitBackRef.current = true;
       resetMobileStreamStateForExit();
       if (document.fullscreenElement === playerContainerRef.current) {
         try {
@@ -573,7 +529,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
           // Browser already handled fullscreen exit.
         }
       }
-      exitMobileStreamView();
+      router.back();
       return;
     }
 
