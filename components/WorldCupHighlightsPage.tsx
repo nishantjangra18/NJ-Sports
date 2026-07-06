@@ -316,7 +316,7 @@ function PastWinnersSection() {
   return (
     <section className="px-5 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-7xl">
-        <SectionHeader eyebrow="Tournament history" title="Past World Cup Winners" action="Cached dataset" />
+        <SectionHeader eyebrow="Tournament history" title="Past World Cup Winners" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {worldCupWinners.map((winner, index) => (
             <article key={winner.year} className={cn("flex items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-white/[0.055] px-4 py-3 backdrop-blur-2xl", index >= 4 && "hidden sm:flex")}>
