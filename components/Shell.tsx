@@ -10,9 +10,8 @@ import { Clapperboard, Heart, Home, Search, Settings, Shield, Trophy, UserCircle
 import { FootballIcon } from "@/components/SportsIcons";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cn } from "@/lib/utils";
-import { useSearchResults, useWorldCup2026Fixtures } from "@/hooks/useStreamedData";
+import { useSearchResults } from "@/hooks/useStreamedData";
 import { useAuth } from "@/hooks/useAuth";
-import type { WorldCupMatch } from "@/services/api/football";
 
 type NavIcon = LucideIcon | ((props: SVGProps<SVGSVGElement>) => ReactNode);
 
@@ -169,7 +168,7 @@ function getInitials(name?: string) {
 
 function ProfileAvatar({ name, src, compact = false }: { name?: string; src?: string; compact?: boolean }) {
   return (
-    <span className={cn("grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/12 bg-white text-black", compact ? "h-10 w-10 text-sm font-bold" : "h-8 w-8 text-[11px] font-bold")}> 
+    <span className={cn("grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/12 bg-white text-black", compact ? "h-10 w-10 text-sm font-bold" : "h-8 w-8 text-[11px] font-bold")}>
       {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : getInitials(name) || <UserCircle className="h-5 w-5 text-black/70" />}
     </span>
   );
@@ -235,9 +234,6 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const fixtures = useWorldCup2026Fixtures();
-  const allMatches = fixtures.data?.all ?? [];
 
   const isAdmin = mounted && auth.user?.role === "admin";
   const sidebarTopNavItems = useMemo(() => {
@@ -316,7 +312,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
         initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-        className={cn("min-h-screen", !immersive && "max-md:pb-36 max-md:pt-16 lg:pl-[72px] lg:pb-16")}
+        className={cn("min-h-screen", !immersive && "max-md:pb-24 max-md:pt-16 lg:pl-[72px]")}
       >
         {children}
       </motion.main>
@@ -353,115 +349,6 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
           </div>
         </nav>
       ) : null}
-
-      {!immersive && <Ticker matches={allMatches} />}
-    </div>
-  );
-}
-
-function timeValue(match: WorldCupMatch) {
-  const parsed = Date.parse(match.kickoffTimestamp ?? "");
-  return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
-}
-
-function Ticker({ matches }: { matches: WorldCupMatch[] }) {
-  const sortedMatches = useMemo(() => {
-    return [...matches].sort((a, b) => {
-      if (a.isLive && !b.isLive) return -1;
-      if (!a.isLive && b.isLive) return 1;
-      if (a.isFinished && !b.isFinished) return -1;
-      if (!a.isFinished && b.isFinished) return 1;
-      
-      const aTime = timeValue(a);
-      const bTime = timeValue(b);
-      if (a.isFinished) {
-        return bTime - aTime;
-      }
-      return aTime - bTime;
-    });
-  }, [matches]);
-
-  const items = useMemo(() => {
-    return sortedMatches.map(match => {
-      const isLive = match.isLive;
-      const isFinished = match.isFinished;
-      const homeScore = match.score.home;
-      const awayScore = match.score.away;
-      const hasScore = homeScore !== null && awayScore !== null;
-      
-      let scoreText = `${match.homeTeam.shortName} vs ${match.awayTeam.shortName}`;
-      if (isLive || isFinished || hasScore) {
-        scoreText = `${match.homeTeam.shortName} ${homeScore ?? 0} - ${awayScore ?? 0} ${match.awayTeam.shortName}`;
-        if (isLive) {
-          scoreText = `🔴 ${scoreText} (LIVE)`;
-        } else if (isFinished) {
-          scoreText = `FT | ${scoreText}`;
-        }
-      } else {
-        const kickoff = timeValue(match);
-        if (kickoff !== Number.MAX_SAFE_INTEGER) {
-          const kickoffDate = new Date(kickoff);
-          const timeStr = kickoffDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-          const dateStr = kickoffDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-          scoreText = `${match.homeTeam.shortName} vs ${match.awayTeam.shortName} (${dateStr} ${timeStr})`;
-        } else {
-          scoreText = `${match.homeTeam.shortName} vs ${match.awayTeam.shortName} (TBD)`;
-        }
-      }
-      return {
-        fixtureId: match.fixtureId,
-        text: scoreText
-      };
-    });
-  }, [sortedMatches]);
-
-  if (items.length === 0) return null;
-
-  const duplicatedItems = [...items, ...items, ...items, ...items];
-
-  return (
-    <div className="fixed inset-x-0 bottom-[68px] md:bottom-0 z-30 border-t border-white/10 bg-black/85 py-3 backdrop-blur-2xl select-none overflow-hidden">
-      <style>{`
-        .ticker-wrap {
-          width: 100%;
-          overflow: hidden;
-        }
-        .ticker-content {
-          display: flex;
-          width: max-content;
-          animation: ticker-scroll 45s linear infinite;
-        }
-        .ticker-content:hover {
-          animation-play-state: paused;
-        }
-        @keyframes ticker-scroll {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          100% {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-      `}</style>
-      
-      <div className="mx-auto flex max-w-7xl items-center gap-5 px-5 sm:px-8 lg:px-10">
-        <span className="shrink-0 rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-red-400 border border-red-500/10">
-          World Cup Ticker
-        </span>
-        <div className="ticker-wrap flex-1">
-          <div className="ticker-content gap-8 text-xs font-semibold text-white/70">
-            {duplicatedItems.map((item, idx) => (
-              <Link
-                key={`t1-${item.fixtureId}-${idx}`}
-                href={`/matches/${encodeURIComponent(item.fixtureId)}`}
-                className="shrink-0 hover:text-studio-accent transition whitespace-nowrap"
-              >
-                {item.text}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
