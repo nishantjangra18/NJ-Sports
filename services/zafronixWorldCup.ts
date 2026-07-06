@@ -1,4 +1,4 @@
-﻿import { connectMongoDB } from "@/lib/db/mongoose";
+import { connectMongoDB } from "@/lib/db/mongoose";
 import { PlayerImageCache } from "@/models/PlayerImageCache";
 import { WorldCupStatsSnapshot } from "@/models/WorldCupStatsSnapshot";
 
@@ -46,7 +46,7 @@ const sourceName = "zafronix";
 const defaultImage = "/brand/football-placeholder.svg";
 const defaultPlayerAvatar = "/default/player-avatar.png";
 const imageCacheTtlMs = Number(process.env.PLAYER_IMAGE_CACHE_TTL_MS ?? 30 * 24 * 60 * 60 * 1000);
-const cacheTtlMs = Number(process.env.ZAFRONIX_WORLD_CUP_CACHE_TTL_MS ?? 6 * 60 * 60 * 1000);
+const cacheTtlMs = Number(process.env.ZAFRONIX_WORLD_CUP_CACHE_TTL_MS ?? 10 * 60 * 1000);
 const requestRetries = 1;
 
 const countryFlagCodes: Record<string, string> = {
