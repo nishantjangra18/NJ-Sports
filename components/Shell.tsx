@@ -235,7 +235,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
     setMounted(true);
   }, []);
 
-  const isAdmin = auth.user?.role === "admin";
+  const isAdmin = mounted && auth.user?.role === "admin";
   const sidebarTopNavItems = useMemo(() => {
     const items = [...topNavItems];
     if (isAdmin) {
