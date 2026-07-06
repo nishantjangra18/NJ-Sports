@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, BarChart3, Check, Cloud, Heart, Maximize, Minimize } from "lucide-react";
 import type HlsInstance from "hls.js";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { MatchCenterPanel } from "@/components/MatchCenterPanel";
 import { Shell } from "@/components/Shell";
 import { cn } from "@/lib/utils";
@@ -98,6 +98,14 @@ function getPlayerDiagnostics(stream: StreamedStream): { renderMode: PlayerRende
 
 function isMobileViewport() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+}
+
+function isTouchDevice() {
+  return typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0);
+}
+
+function isMobileStreamDevice() {
+  return isMobileViewport() || isTouchDevice();
 }
 
 function isPortraitViewport() {
@@ -219,7 +227,7 @@ function NativeStreamPlayer({ stream, title, startTime = 0, onReady, onError, on
   );
 }
 
-function PlayerIconButton({ label, onClick, active, children }: { label: string; onClick?: () => void; active?: boolean; children: ReactNode }) {
+function PlayerIconButton({ label, onClick, active, children }: { label: string; onClick?: (event: MouseEvent<HTMLButtonElement>) => void; active?: boolean; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -245,6 +253,8 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const iframeLoadTimer = useRef<number | null>(null);
   const iframeWatchedTimeRef = useRef(0);
   const lastProgressSaveRef = useRef(0);
+  const mobileBackNavigatingRef = useRef(false);
+  const suppressFullscreenExitBackRef = useRef(false);
   const [activeStreamIndex, setActiveStreamIndex] = useState(0);
   const [previousWorkingIndex, setPreviousWorkingIndex] = useState<number | null>(null);
   const [recommendedIndex, setRecommendedIndex] = useState<number | null>(null);
@@ -258,8 +268,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const [mobileCinemaMode, setMobileCinemaMode] = useState(false);
   const [mobileLandscapeSimulated, setMobileLandscapeSimulated] = useState(false);
   const [matchCenterOpen, setMatchCenterOpen] = useState(false);
+  const [isExitingStream, setIsExitingStream] = useState(false);
   const streamList = streams.data ?? [];
-  const activeStream = streamList[activeStreamIndex] ?? streamList[0];
+  const activeStream = isExitingStream ? null : streamList[activeStreamIndex] ?? streamList[0];
   const resolvedActiveIndex = activeStream ? Math.max(0, streamList.indexOf(activeStream)) : 0;
   const activeKey = activeStream ? streamKey(activeStream, resolvedActiveIndex) : "";
   const activeLabel = activeStream ? streamLabel(activeStream, resolvedActiveIndex, recommendedIndex) : "Stream";
@@ -267,7 +278,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const title = target.title ?? "Live Stream";
   const resumeTime = getResumeTimeFromSearch(searchParams.toString());
   const isLiveMatch = target.live === true;
-  const isPlayerLoading = target.isResolving || streams.isLoading || (!activeStream && Boolean(target.source && target.id));
+  const isPlayerLoading = !isExitingStream && (target.isResolving || streams.isLoading || (!activeStream && Boolean(target.source && target.id)));
 
   function saveContinueProgress(watchedTime: number, duration: number) {
     if (!activeStream || !target.source || !target.id) return;
@@ -294,10 +305,45 @@ export function PlayerExperience({ slug }: { slug: string }) {
   }, []);
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === playerContainerRef.current);
+    const handleFullscreenChange = () => {
+      const playerIsFullscreen = document.fullscreenElement === playerContainerRef.current;
+      setIsFullscreen(playerIsFullscreen);
+
+      if (playerIsFullscreen || !mobileCinemaMode || !isMobileStreamDevice()) return;
+      if (suppressFullscreenExitBackRef.current) {
+        suppressFullscreenExitBackRef.current = false;
+        return;
+      }
+
+      exitMobileStreamView();
+    };
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     handleFullscreenChange();
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [mobileCinemaMode]);
+
+  useEffect(() => {
+    if (!isMobileStreamDevice()) return;
+
+    const handleMobilePopState = (event: PopStateEvent) => {
+      if (mobileBackNavigatingRef.current) return;
+      event.stopImmediatePropagation();
+      setIsExitingStream(true);
+      setIsFullscreen(false);
+      setMobileCinemaMode(false);
+      setMobileLandscapeSimulated(false);
+      setActiveStreamIndex(0);
+      if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
+      try {
+        getScreenOrientation()?.unlock?.();
+      } catch {
+        // Ignore browser-specific orientation unlock failures.
+      }
+    };
+
+    window.addEventListener("popstate", handleMobilePopState);
+    return () => window.removeEventListener("popstate", handleMobilePopState);
   }, []);
 
   useEffect(() => {
@@ -332,6 +378,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
     setRecommendedIndex(null);
     setFailedKeys(new Set());
     setMatchCenterOpen(false);
+    setIsExitingStream(false);
+    mobileBackNavigatingRef.current = false;
+    suppressFullscreenExitBackRef.current = false;
   }, [target.source, target.id]);
 
   useEffect(() => {
@@ -491,8 +540,43 @@ export function PlayerExperience({ slug }: { slug: string }) {
     }
   }
 
-  async function handleBack() {
-    if (isMobileViewport()) await exitMobileCinemaMode();
+  function resetMobileStreamStateForExit() {
+    setIsExitingStream(true);
+    setIsFullscreen(false);
+    setMobileCinemaMode(false);
+    setMobileLandscapeSimulated(false);
+    setMatchCenterOpen(false);
+    setServerMenuOpen(false);
+    setSwitching(false);
+    setActiveStreamIndex(0);
+    if (hideControlsTimer.current) window.clearTimeout(hideControlsTimer.current);
+    if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
+  }
+
+  function exitMobileStreamView() {
+    if (mobileBackNavigatingRef.current) return;
+    mobileBackNavigatingRef.current = true;
+    resetMobileStreamStateForExit();
+    router.back();
+  }
+
+  async function handleBack(event?: MouseEvent<HTMLButtonElement>) {
+    if (isMobileStreamDevice()) {
+      event?.preventDefault();
+      event?.stopPropagation();
+      suppressFullscreenExitBackRef.current = true;
+      resetMobileStreamStateForExit();
+      if (document.fullscreenElement === playerContainerRef.current) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          // Browser already handled fullscreen exit.
+        }
+      }
+      exitMobileStreamView();
+      return;
+    }
+
     router.back();
   }
 
@@ -582,16 +666,16 @@ export function PlayerExperience({ slug }: { slug: string }) {
           )
         ) : null}
 
-        {isPlayerLoading ? (
+        {!isExitingStream && isPlayerLoading ? (
           <PlayerSkeleton />
-        ) : streams.isError ? (
+        ) : !isExitingStream && streams.isError ? (
           <div className="absolute inset-0 grid place-items-center bg-black px-6 text-center">
             <div>
               <h1 className="text-xl font-semibold text-white">Unable to load stream</h1>
               <button type="button" onClick={() => void streams.refetch()} className="mt-5 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:scale-[1.02]">Retry</button>
             </div>
           </div>
-        ) : !activeStream ? (
+        ) : !isExitingStream && !activeStream ? (
           <div className="absolute inset-0 grid place-items-center bg-black px-6 text-center">
             <div>
               <h1 className="text-xl font-semibold text-white">No stream servers available</h1>
@@ -600,24 +684,24 @@ export function PlayerExperience({ slug }: { slug: string }) {
           </div>
         ) : null}
 
-        {switching ? (
+        {!isExitingStream && switching ? (
           <div className="absolute inset-0 z-20 grid place-items-center bg-black/60 backdrop-blur-sm">
             <div className="text-center"><div className="mx-auto h-14 w-14 animate-pulse rounded-full border border-white/20 bg-white/10" /><p className="mt-4 text-sm font-semibold text-white/72">Loading stream...</p></div>
           </div>
         ) : null}
 
         <AnimatePresence>
-          {toast ? (
+          {!isExitingStream && toast ? (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute left-1/2 top-6 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-black/80 px-4 py-2 text-sm font-medium text-white shadow-premium backdrop-blur-2xl">
               {toast}
             </motion.div>
           ) : null}
         </AnimatePresence>
 
-        <motion.div animate={{ opacity: controlsVisible || serverMenuOpen ? 1 : 0 }} transition={{ duration: 0.25 }} className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/78 via-black/32 to-transparent px-5 pb-16 pt-5 sm:px-8 max-md:px-4 max-md:pb-20 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
+        {!isExitingStream ? <motion.div animate={{ opacity: controlsVisible || serverMenuOpen ? 1 : 0 }} transition={{ duration: 0.25 }} className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/78 via-black/32 to-transparent px-5 pb-16 pt-5 sm:px-8 max-md:px-4 max-md:pb-20 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
-              <PlayerIconButton label="Back" onClick={() => void handleBack()}>
+              <PlayerIconButton label="Back" onClick={(event) => void handleBack(event)}>
                 <ArrowLeft className="h-5 w-5" />
               </PlayerIconButton>
               <div className="min-w-0">
@@ -676,9 +760,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
               </PlayerIconButton>
             </div>
           </div>
+        </motion.div> : null}
         </motion.div>
-        </motion.div>
-        <MatchCenterPanel open={!mobileCinemaMode && matchCenterOpen && isLiveMatch} matchId={target.fixtureId} onClose={() => setMatchCenterOpen(false)} />
+        <MatchCenterPanel open={!isExitingStream && !mobileCinemaMode && matchCenterOpen && isLiveMatch} matchId={target.fixtureId} onClose={() => setMatchCenterOpen(false)} />
       </section>
     </Shell>
   );
