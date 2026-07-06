@@ -778,16 +778,6 @@ export function PlayerExperience({ slug }: { slug: string }) {
                     </div>
                   </div>
                 </div>
-
-                {/* Fullscreen Button */}
-                <button
-                  type="button"
-                  onClick={toggleMobileFullscreen}
-                  className="flex items-center justify-center gap-2 bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-neutral-800 transition shadow-sm h-[42px]"
-                >
-                  <Maximize className="h-4 w-4 text-neutral-300" />
-                  <span>Fullscreen</span>
-                </button>
               </div>
             )}
 
