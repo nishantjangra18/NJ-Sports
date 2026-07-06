@@ -229,6 +229,11 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const auth = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isAdmin = auth.user?.role === "admin";
   const sidebarTopNavItems = useMemo(() => {
@@ -257,7 +262,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
             aria-label="Profile"
             className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white transition active:scale-95"
           >
-            <ProfileAvatar name={auth.user?.name} src={auth.user?.profilePic} compact />
+            <ProfileAvatar name={mounted ? auth.user?.name : undefined} src={mounted ? auth.user?.profilePic : undefined} compact />
           </button>
         </header>
       ) : null}
@@ -278,8 +283,8 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
                   active={isLinkItem(item) ? isActivePath(pathname, item.href) : false}
                   onSearch={() => setSearchOpen(true)}
                   onProfile={handleProfileRequest}
-                  profileName={auth.user?.name}
-                  profilePic={auth.user?.profilePic}
+                  profileName={mounted ? auth.user?.name : undefined}
+                  profilePic={mounted ? auth.user?.profilePic : undefined}
                 />
               ))}
             </div>
@@ -292,8 +297,8 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
                   active={isActivePath(pathname, item.href)}
                   onSearch={() => setSearchOpen(true)}
                   onProfile={handleProfileRequest}
-                  profileName={auth.user?.name}
-                  profilePic={auth.user?.profilePic}
+                  profileName={mounted ? auth.user?.name : undefined}
+                  profilePic={mounted ? auth.user?.profilePic : undefined}
                 />
               ))}
             </div>
