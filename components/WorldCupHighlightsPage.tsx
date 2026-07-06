@@ -318,8 +318,8 @@ function PastWinnersSection() {
       <div className="mx-auto max-w-7xl">
         <SectionHeader eyebrow="Tournament history" title="Past World Cup Winners" action="Cached dataset" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {worldCupWinners.map((winner) => (
-            <article key={winner.year} className="flex items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-white/[0.055] px-4 py-3 backdrop-blur-2xl">
+          {worldCupWinners.map((winner, index) => (
+            <article key={winner.year} className={cn("flex items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-white/[0.055] px-4 py-3 backdrop-blur-2xl", index >= 4 && "hidden sm:flex")}>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/44">{winner.year}</p>
                 <p className="mt-1 text-base font-semibold text-white">{winner.winner}</p>
