@@ -60,19 +60,22 @@ export async function POST(request: Request) {
 
     if (shouldKeep) {
       const title = normalizeString(body.title, 220);
-      current.unshift({
-        matchId,
-        title,
-        thumbnail: normalizeString(body.thumbnail, 1000),
-        url: normalizeString(body.url, 1000),
-        progress,
-        duration,
-        watchedTime,
-        lastWatchedAt: new Date()
-      });
-
-      // Track log activity
       const isHighlight = matchId.startsWith("highlight:");
+
+      if (isHighlight) {
+        current.unshift({
+          matchId,
+          title,
+          thumbnail: normalizeString(body.thumbnail, 1000),
+          url: normalizeString(body.url, 1000),
+          progress,
+          duration,
+          watchedTime,
+          lastWatchedAt: new Date()
+        });
+      }
+
+      // Track log activity (runs for both streams and highlights)
       const cleanMatchId = isHighlight ? matchId.replace("highlight:", "") : matchId;
       const action = isHighlight ? "highlight_interaction" : "watch_video";
       const actionText = isHighlight ? "Viewed highlight video" : "Started watching match";
