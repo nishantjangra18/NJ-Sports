@@ -237,7 +237,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
   }, []);
 
   const isWorldCupPage = pathname === "/world-cup-2026";
-  const isHomeOrHighlights = pathname === "/" || pathname.startsWith("/highlights");
+  const isHomeOrHighlightsIndex = pathname === "/" || pathname === "/highlights";
   const fixtures = useWorldCup2026Fixtures();
   const allMatches = fixtures.data?.all ?? [];
 
@@ -322,7 +322,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
       >
         {children}
 
-        {!immersive && isHomeOrHighlights && (
+        {!immersive && isHomeOrHighlightsIndex && (
           <footer className="w-full border-t border-white/10 bg-transparent py-8 select-none mt-16 px-6 sm:px-8 lg:px-10">
             <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] font-medium">
               <p className="text-center sm:text-left text-white/50">© 2026 NJ Sports. All rights reserved.</p>
@@ -382,7 +382,7 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
       if (!a.isLive && b.isLive) return 1;
       if (a.isFinished && !b.isFinished) return -1;
       if (!a.isFinished && b.isFinished) return 1;
-      
+
       const aTime = timeValue(a);
       const bTime = timeValue(b);
       if (a.isFinished) {
@@ -399,7 +399,7 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
       const homeScore = match.score.home;
       const awayScore = match.score.away;
       const hasScore = homeScore !== null && awayScore !== null;
-      
+
       let scoreText = `${match.homeTeam.shortName} vs ${match.awayTeam.shortName}`;
       if (isLive || isFinished || hasScore) {
         scoreText = `${match.homeTeam.shortName} ${homeScore ?? 0} - ${awayScore ?? 0} ${match.awayTeam.shortName}`;
@@ -466,7 +466,7 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
           }
         }
       `}</style>
-      
+
       <div className="mx-auto flex max-w-7xl items-center gap-5 px-5 sm:px-8 lg:px-10">
         <span className="shrink-0 rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-red-400 border border-red-500/10">
           World Cup Ticker
