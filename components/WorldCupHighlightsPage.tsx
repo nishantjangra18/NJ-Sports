@@ -384,7 +384,7 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
   const duplicatedItems = [...items, ...items, ...items, ...items];
 
   return (
-    <div className="sticky bottom-0 z-30 border-t border-white/10 bg-black/85 py-3 backdrop-blur-2xl select-none overflow-hidden">
+    <div className="fixed inset-x-0 bottom-[68px] md:bottom-0 z-20 border-t border-white/10 bg-black/85 py-3 backdrop-blur-2xl select-none overflow-hidden">
       <style>{`
         .ticker-wrap {
           width: 100%;
@@ -440,7 +440,7 @@ export function WorldCupHighlightsPage() {
 
   return (
     <Shell>
-      <main className="min-h-screen overflow-hidden bg-[#050507]">
+      <main className="min-h-screen overflow-hidden bg-[#050507] pb-36 md:pb-20">
         <Hero />
         <Scorecards matches={allMatches} loading={fixtures.isLoading} hasData={hasWorldCupData} />
         <Fixtures matches={allMatches} hasData={hasWorldCupData} />
