@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 import { Check, Search } from "lucide-react";
 import {
   clubTeamOptions,
@@ -34,6 +34,9 @@ type TeamSelectorProps = {
   value: string;
   options: TeamOption[];
   onSelect: (team: string) => void;
+  isOpen: boolean;
+  onOpenToggle: () => void;
+  onClose: () => void;
 };
 
 function toDraft(preferences: TeamPreferences): PreferenceDraft {
@@ -74,11 +77,11 @@ function TeamLogo({ team }: { team: TeamOption }) {
   );
 }
 
-function TeamSelector({ label, placeholder, value, options, onSelect }: TeamSelectorProps) {
+function TeamSelector({ label, placeholder, value, options, onSelect, isOpen, onOpenToggle, onClose }: TeamSelectorProps) {
   const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 300);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
+  const justFocused = useRef(false);
 
   useEffect(() => {
     setQuery(value);
@@ -99,18 +102,32 @@ function TeamSelector({ label, placeholder, value, options, onSelect }: TeamSele
           onChange={(event) => {
             const nextQuery = event.target.value;
             setQuery(nextQuery);
-            setOpen(true);
+            if (!isOpen) onOpenToggle();
             if (!nextQuery.trim()) onSelect("");
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onFocus={() => {
+            justFocused.current = true;
+            if (!isOpen) onOpenToggle();
+          }}
+          onBlur={() => window.setTimeout(onClose, 120)}
+          onClick={() => {
+            if (justFocused.current) {
+              justFocused.current = false;
+              return;
+            }
+            if (isOpen) {
+              onClose();
+            } else {
+              onOpenToggle();
+            }
+          }}
           placeholder={placeholder}
           className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.055] pl-11 pr-4 text-sm font-medium text-white outline-none transition placeholder:text-white/34 focus:border-white/28 focus:bg-white/[0.08]"
           autoComplete="off"
         />
       </div>
 
-      {open ? (
+      {isOpen ? (
         <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#121212] p-1 shadow-premium">
           {visibleOptions.length > 0 ? (
             visibleOptions.map((team) => {
@@ -123,7 +140,7 @@ function TeamSelector({ label, placeholder, value, options, onSelect }: TeamSele
                   onClick={() => {
                     onSelect(team.name);
                     setQuery(team.name);
-                    setOpen(false);
+                    onClose();
                   }}
                   className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/82 transition hover:bg-white/[0.08]"
                 >
@@ -152,6 +169,7 @@ export function TeamPreferencesPanel({
   clubTeamOptions: clubOptions = clubTeamOptions
 }: TeamPreferencesPanelProps) {
   const [draft, setDraft] = useState<PreferenceDraft>(() => toDraft(initialPreferences));
+  const [activeDropdown, setActiveDropdown] = useState<"international" | "club" | null>(null);
 
   useEffect(() => {
     setDraft(toDraft(initialPreferences));
@@ -174,20 +192,30 @@ export function TeamPreferencesPanel({
       </div>
 
       <div className="mt-6 grid gap-5 md:grid-cols-2">
-        <TeamSelector
-          label="International Team"
-          placeholder="Search international team..."
-          value={draft.internationalTeam}
-          options={internationalOptions}
-          onSelect={(team) => setDraft((current) => ({ ...current, internationalTeam: team }))}
-        />
-        <TeamSelector
-          label="Club Team"
-          placeholder="Search club team..."
-          value={draft.clubTeam}
-          options={clubOptions}
-          onSelect={(team) => setDraft((current) => ({ ...current, clubTeam: team }))}
-        />
+        <div className={cn("relative", activeDropdown === "international" ? "z-30" : "z-10")}>
+          <TeamSelector
+            label="International Team"
+            placeholder="Search international team..."
+            value={draft.internationalTeam}
+            options={internationalOptions}
+            onSelect={(team) => setDraft((current) => ({ ...current, internationalTeam: team }))}
+            isOpen={activeDropdown === "international"}
+            onOpenToggle={() => setActiveDropdown(current => current === "international" ? null : "international")}
+            onClose={() => setActiveDropdown(current => current === "international" ? null : current)}
+          />
+        </div>
+        <div className={cn("relative", activeDropdown === "club" ? "z-30" : "z-10")}>
+          <TeamSelector
+            label="Club Team"
+            placeholder="Search club team..."
+            value={draft.clubTeam}
+            options={clubOptions}
+            onSelect={(team) => setDraft((current) => ({ ...current, clubTeam: team }))}
+            isOpen={activeDropdown === "club"}
+            onOpenToggle={() => setActiveDropdown(current => current === "club" ? null : "club")}
+            onClose={() => setActiveDropdown(current => current === "club" ? null : current)}
+          />
+        </div>
       </div>
 
       <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">

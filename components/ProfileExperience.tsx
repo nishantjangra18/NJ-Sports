@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import {
   clubTeamOptions,
   getDefaultClubLogo,
@@ -51,7 +52,10 @@ function TeamPreferenceCard({
   value,
   options,
   editing,
-  onChange
+  onChange,
+  isOpen,
+  onOpenToggle,
+  onClose
 }: {
   type: string;
   team?: TeamOption;
@@ -59,14 +63,16 @@ function TeamPreferenceCard({
   options: TeamOption[];
   editing: boolean;
   onChange: (value: string) => void;
+  isOpen: boolean;
+  onOpenToggle: () => void;
+  onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+  const justFocused = useRef(false);
 
   useEffect(() => {
     if (!editing) {
       setQuery("");
-      setOpen(false);
     }
   }, [editing]);
 
@@ -78,7 +84,7 @@ function TeamPreferenceCard({
   function selectTeam(teamName: string) {
     onChange(teamName);
     setQuery("");
-    setOpen(false);
+    onClose();
   }
 
   return (
@@ -106,23 +112,39 @@ function TeamPreferenceCard({
               <Search className="h-4 w-4 shrink-0 text-cyan-100/58" />
               <input
                 value={query}
-                onFocus={() => setOpen(true)}
+                onFocus={() => {
+                  justFocused.current = true;
+                  if (!isOpen) onOpenToggle();
+                }}
                 onChange={(event) => {
                   setQuery(event.target.value);
-                  setOpen(true);
+                  if (!isOpen) onOpenToggle();
                 }}
+                onClick={() => {
+                  if (justFocused.current) {
+                    justFocused.current = false;
+                    return;
+                  }
+                  if (isOpen) {
+                    onClose();
+                  } else {
+                    onOpenToggle();
+                  }
+                }}
+                onBlur={() => window.setTimeout(onClose, 120)}
                 placeholder={value || "Search team"}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/34"
               />
             </div>
 
-            {open ? (
+            {isOpen ? (
               <div className="absolute left-0 right-0 top-12 z-30 max-h-64 overflow-auto rounded-2xl border border-white/12 bg-[#0b0f1a] p-2 shadow-[0_22px_60px_rgba(0,0,0,0.55)]">
                 {filteredOptions.length ? (
                   filteredOptions.map((option) => (
                     <button
                       key={option.name}
                       type="button"
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => selectTeam(option.name)}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.08]"
                     >
@@ -156,6 +178,7 @@ export function ProfileExperience() {
   const [profileStatus, setProfileStatus] = useState("");
   const [profileError, setProfileError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<"international" | "club" | null>(null);
 
   const savedInternationalTeam = auth.user?.preferences?.internationalTeam ?? auth.user?.favoriteInternationalTeams?.[0] ?? "";
   const savedClubTeam = auth.user?.preferences?.clubTeam ?? auth.user?.favoriteClubTeams?.[0] ?? "";
@@ -315,22 +338,32 @@ export function ProfileExperience() {
               </div>
 
               <div className="relative z-20 mt-8 grid gap-4 md:grid-cols-2">
-                <TeamPreferenceCard
-                  type="International Team"
-                  team={editMode ? editableInternational : savedInternational}
-                  value={internationalTeam}
-                  options={internationalTeamOptions}
-                  editing={editMode}
-                  onChange={setInternationalTeam}
-                />
-                <TeamPreferenceCard
-                  type="Club Team"
-                  team={editMode ? editableClub : savedClub}
-                  value={clubTeam}
-                  options={clubTeamOptions}
-                  editing={editMode}
-                  onChange={setClubTeam}
-                />
+                <div className={cn("relative", activeDropdown === "international" ? "z-30" : "z-10")}>
+                  <TeamPreferenceCard
+                    type="International Team"
+                    team={editMode ? editableInternational : savedInternational}
+                    value={internationalTeam}
+                    options={internationalTeamOptions}
+                    editing={editMode}
+                    onChange={setInternationalTeam}
+                    isOpen={activeDropdown === "international"}
+                    onOpenToggle={() => setActiveDropdown(current => current === "international" ? null : "international")}
+                    onClose={() => setActiveDropdown(current => current === "international" ? null : current)}
+                  />
+                </div>
+                <div className={cn("relative", activeDropdown === "club" ? "z-30" : "z-10")}>
+                  <TeamPreferenceCard
+                    type="Club Team"
+                    team={editMode ? editableClub : savedClub}
+                    value={clubTeam}
+                    options={clubTeamOptions}
+                    editing={editMode}
+                    onChange={setClubTeam}
+                    isOpen={activeDropdown === "club"}
+                    onOpenToggle={() => setActiveDropdown(current => current === "club" ? null : "club")}
+                    onClose={() => setActiveDropdown(current => current === "club" ? null : current)}
+                  />
+                </div>
               </div>
 
               {editMode ? (

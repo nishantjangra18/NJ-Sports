@@ -299,7 +299,7 @@ export const Hero = memo(function Hero({ slides, isLoading = false }: HeroProps)
   }
   return (
     <section
-      className="relative h-[84vh] overflow-hidden outline-none max-md:h-[68vh] max-md:min-h-[520px] max-md:max-h-[620px]"
+      className="relative h-[84vh] overflow-hidden outline-none max-md:h-[68vh] max-md:min-h-[520px] max-md:max-h-[620px] bg-studio-bg"
       tabIndex={0}
       aria-roledescription="carousel"
       aria-label="Live football hero carousel"
@@ -316,10 +316,15 @@ export const Hero = memo(function Hero({ slides, isLoading = false }: HeroProps)
           transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
-          <SafeImage src={hero.thumbnail} fallbackSrc={hero.thumbnail} alt={hero.title} fill priority unoptimized className="object-cover object-right md:object-[right_center] max-md:scale-110 max-md:blur-2xl max-md:opacity-55" />
+          <SafeImage src={hero.thumbnail} fallbackSrc={hero.thumbnail} alt={hero.title} fill priority unoptimized className="object-cover object-right md:object-[right_center] max-md:scale-110 max-md:blur-[90px] max-md:opacity-45" />
         </motion.div>
       </AnimatePresence>
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#070707_0%,rgba(7,7,7,0.94)_22%,rgba(7,7,7,0.62)_45%,rgba(7,7,7,0.16)_70%,#070707_100%)] max-md:bg-[linear-gradient(180deg,rgba(7,7,7,0.18)_0%,rgba(7,7,7,0.55)_45%,#070707_100%)]" />
+      <div className={cn(
+        "absolute inset-0 bg-[linear-gradient(90deg,#070707_0%,rgba(7,7,7,0.94)_22%,rgba(7,7,7,0.62)_45%,rgba(7,7,7,0.16)_70%,#070707_100%)]",
+        heroIsMatchSlide
+          ? "max-md:bg-[linear-gradient(180deg,rgba(7,7,7,0.18)_0%,rgba(7,7,7,0.55)_45%,#070707_100%)]"
+          : "max-md:bg-[linear-gradient(180deg,rgba(7,7,7,0)_0%,rgba(7,7,7,0.32)_45%,rgba(7,7,7,0.72)_100%)]"
+      )} />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-studio-bg to-transparent" />
 
       <div className="relative z-10 flex h-full max-w-7xl flex-col justify-end px-5 pb-36 pt-8 sm:px-8 sm:pb-40 sm:pt-9 lg:px-10 lg:pb-36 lg:pt-10 max-md:hidden">
@@ -358,9 +363,9 @@ export const Hero = memo(function Hero({ slides, isLoading = false }: HeroProps)
                   </a>
                 ) : (
                   <Link href={hero.href} prefetch onMouseEnter={() => warmSlide(hero)} onFocus={() => warmSlide(hero)} onClick={() => {
-                      if (heroHighlight) storeHighlightRoute(heroHighlight);
-                      else storeWatchRoute(hero);
-                    }}>
+                    if (heroHighlight) storeHighlightRoute(heroHighlight);
+                    else storeWatchRoute(hero);
+                  }}>
                     {watchButton}
                   </Link>
                 )
@@ -380,157 +385,157 @@ export const Hero = memo(function Hero({ slides, isLoading = false }: HeroProps)
 
       {thumbnailSlides.length > 0 ? (
         <>
-      <div className="relative z-10 flex h-full flex-col justify-end overflow-visible pb-7 pt-16 md:hidden">
-        <div
-          className="flex pb-2 transition-transform duration-500 ease-in-out will-change-transform [touch-action:pan-y]"
-          style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-        >
-          {slides.map((slide, index) => {
-            const active = index === activeIndex;
-            const matchSlide = isMatchSlide(slide);
-            const highlight = [...(fifaHighlights.data ?? []), ...(uefaHighlights.data ?? [])].find((item) => item.href === slide.href);
-            const externalHighlight = Boolean(highlight && !highlight.embeddable);
-            const cardContent = (
-              <motion.div
-                animate={{ scale: active ? 1 : 0.92, opacity: active ? 1 : 0.72 }}
-                transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-                className={cn("group relative h-[390px] w-[82vw] max-w-[330px] shrink-0 overflow-hidden rounded-[26px] border border-white/12 shadow-[0_22px_70px_rgba(0,0,0,0.48)]", matchSlide ? "bg-studio-card" : "bg-transparent")}
-              >
-                <SafeImage
-                  src={slide.thumbnail}
-                  fallbackSrc={slide.thumbnail}
-                  alt={slide.title}
-                  fill
-                  sizes="82vw"
-                  unoptimized
-                  className={cn(
-                    "object-cover transition duration-500 group-active:scale-105",
-                    matchSlide ? "object-center" : "translate-x-[8%] scale-[1.36] object-right"
-                  )}
-                />
-                <div className={cn(
-                  "absolute inset-0",
-                  matchSlide
-                    ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.16)_38%,rgba(0,0,0,0.88)_100%)]"
-                    : "bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0)_56%,rgba(0,0,0,0.72)_100%)]"
-                )} />
-                <div className="absolute left-4 top-4 flex items-center gap-2">
-                  <span className={cn(
-                    "rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
-                    slide.live || !matchSlide ? "bg-studio-accent text-white" : "bg-yellow-400 text-black"
-                  )}>
-                    {statusBadgeLabel(slide)}
-                  </span>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-4 pr-16">
-                  <p className="mb-2 line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/65">{slide.competition}</p>
-                  <h1 className="line-clamp-2 text-2xl font-semibold leading-[1.05] tracking-normal text-white [overflow-wrap:anywhere]">{slide.title}</h1>
-                  <p className="mt-2 line-clamp-2 text-sm leading-5 text-white/72">{slide.meta}</p>
-                </div>
-                <span className="absolute bottom-5 right-4 grid h-12 w-12 place-items-center rounded-full bg-white text-black shadow-premium">
-                  <Play className="h-5 w-5 fill-black" />
-                </span>
-              </motion.div>
-            );
-
-            return (
-              <div key={slideRenderKey(slide)} className="flex w-full shrink-0 snap-center justify-center px-4">
-                {slide.href ? (
-                  externalHighlight ? (
-                    <a href={slide.href} onMouseEnter={() => warmSlide(slide)} onFocus={() => warmSlide(slide)} rel="noopener noreferrer" aria-label={`Watch ${slide.title}`}>
-                      {cardContent}
-                    </a>
-                  ) : (
-                    <Link
-                      href={slide.href}
-                      prefetch
-                      onMouseEnter={() => warmSlide(slide)}
-                      onFocus={() => warmSlide(slide)}
-                      onClick={() => {
-                        if (highlight) storeHighlightRoute(highlight);
-                        else storeWatchRoute(slide);
-                      }}
-                      aria-label={`Watch ${slide.title}`}
-                    >
-                      {cardContent}
-                    </Link>
-                  )
-                ) : cardContent}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-        <div className="absolute bottom-7 right-0 z-20 w-[min(48vw,560px)] pr-5 sm:pr-8 lg:pr-10 max-md:hidden">
-          <div className="flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              aria-label="Previous football slide"
-              onClick={() => {
-                pauseAutoplay();
-                previousSlide();
-              }}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-black/45 text-white shadow-premium backdrop-blur transition hover:bg-white/12"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
+          <div className="relative z-10 flex h-full flex-col justify-end overflow-visible pb-7 pt-16 md:hidden">
             <div
-              ref={desktopCarouselRef}
-              onPointerDown={handleDesktopCarouselPointerDown}
-              onPointerMove={handleDesktopCarouselPointerMove}
-              onPointerUp={handleDesktopCarouselPointerUp}
-              onPointerCancel={handleDesktopCarouselPointerUp}
-              className="no-scrollbar flex w-[min(36vw,430px)] cursor-grab snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-visible scroll-smooth py-2 pr-[clamp(3.75rem,7vw,6rem)] active:cursor-grabbing xl:w-[460px]"
+              className="flex items-center pb-2 transition-transform duration-500 ease-in-out will-change-transform [touch-action:pan-y]"
+              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
             >
-              {thumbnailSlides.map(({ slide, index }) => {
+              {slides.map((slide, index) => {
                 const active = index === activeIndex;
-                return (
-                  <motion.button
-                    key={slideRenderKey(slide)}
-                    type="button"
-                    onClick={() => handleDesktopThumbClick(index)}
-                    onMouseEnter={() => warmSlide(slide)}
-                    onFocus={() => warmSlide(slide)}
-                    animate={{ y: active ? -2 : 0, scale: active ? 1 : 0.96, opacity: active ? 1 : 0.76 }}
-                    whileHover={{ opacity: 1, y: -2 }}
-                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                    className={cn(
-                      "group relative h-[82px] w-[168px] shrink-0 snap-start overflow-hidden rounded-xl border bg-black/45 text-left shadow-premium backdrop-blur outline-none transition-colors xl:h-[92px] xl:w-[184px]",
-                      active ? "border-white/80 shadow-[0_0_28px_rgba(255,255,255,0.22)]" : "border-white/12 hover:border-white/45"
-                    )}
-                    aria-label={`Show ${slide.title}`}
-                    aria-current={active ? "true" : undefined}
+                const matchSlide = isMatchSlide(slide);
+                const highlight = [...(fifaHighlights.data ?? []), ...(uefaHighlights.data ?? [])].find((item) => item.href === slide.href);
+                const externalHighlight = Boolean(highlight && !highlight.embeddable);
+                const cardContent = (
+                  <motion.div
+                    animate={{ scale: active ? 1 : 0.92, opacity: active ? 1 : 0.72 }}
+                    transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                    className="group relative h-[450px] w-[82vw] max-w-[330px] shrink-0 overflow-hidden rounded-[26px] border border-white/12 shadow-[0_22px_70px_rgba(0,0,0,0.48)] bg-studio-card"
                   >
-                    <SafeImage src={slide.thumbnail} fallbackSrc={slide.thumbnail} alt={slide.title} fill sizes="(min-width: 1280px) 184px, 168px" unoptimized className="object-cover object-[right_center] transition duration-500 group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.44)_52%,rgba(0,0,0,0.12)_100%)]" />
-                    <div className="absolute inset-x-0 bottom-0 p-2.5 pr-10">
+                    <SafeImage
+                      src={slide.thumbnail}
+                      fallbackSrc={slide.thumbnail}
+                      alt={slide.title}
+                      fill
+                      sizes="82vw"
+                      unoptimized
+                      className={cn(
+                        "object-cover transition duration-500 group-active:scale-105 shrink-0",
+                        matchSlide ? "object-center" : "scale-[1.35] object-right"
+                      )}
+                    />
+                    <div className={cn(
+                      "absolute inset-0",
+                      matchSlide
+                        ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.16)_38%,rgba(0,0,0,0.88)_100%)]"
+                        : "bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0)_45%,rgba(0,0,0,0.72)_100%)]"
+                    )} />
+                    <div className="absolute left-4 top-4 flex items-center gap-2">
                       <span className={cn(
-                        "mb-1.5 inline-flex rounded-full px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.1em]",
-                        slide.live || !isMatchSlide(slide) ? "bg-studio-accent text-white" : "bg-yellow-400 text-black"
-                      )}>{statusBadgeLabel(slide)}</span>
-                      <p className="line-clamp-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-white/62">{slide.competition}</p>
-                      <h2 className="mt-0.5 line-clamp-2 max-w-[7.5rem] text-[11px] font-semibold leading-tight tracking-normal text-white xl:max-w-[8.5rem] xl:text-xs">{slide.title}</h2>
+                        "rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
+                        slide.live || !matchSlide ? "bg-studio-accent text-white" : "bg-yellow-400 text-black"
+                      )}>
+                        {statusBadgeLabel(slide)}
+                      </span>
                     </div>
-                    <span className="absolute bottom-2.5 right-2.5 grid h-7 w-7 place-items-center rounded-full bg-white text-black shadow-premium transition group-hover:scale-105">
-                      <Play className="h-3.5 w-3.5 fill-black" />
+                    <div className="absolute inset-x-0 bottom-0 p-4 pr-16">
+                      <p className="mb-2 line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/65">{slide.competition}</p>
+                      <h1 className="line-clamp-2 text-2xl font-semibold leading-[1.05] tracking-normal text-white [overflow-wrap:anywhere]">{slide.title}</h1>
+                      <p className="mt-2 line-clamp-2 text-sm leading-5 text-white/72">{slide.meta}</p>
+                    </div>
+                    <span className="absolute bottom-5 right-4 grid h-12 w-12 place-items-center rounded-full bg-white text-black shadow-premium">
+                      <Play className="h-5 w-5 fill-black" />
                     </span>
-                  </motion.button>
+                  </motion.div>
+                );
+
+                return (
+                  <div key={slideRenderKey(slide)} className="flex w-full shrink-0 snap-center justify-center items-center px-4">
+                    {slide.href ? (
+                      externalHighlight ? (
+                        <a href={slide.href} onMouseEnter={() => warmSlide(slide)} onFocus={() => warmSlide(slide)} rel="noopener noreferrer" aria-label={`Watch ${slide.title}`}>
+                          {cardContent}
+                        </a>
+                      ) : (
+                        <Link
+                          href={slide.href}
+                          prefetch
+                          onMouseEnter={() => warmSlide(slide)}
+                          onFocus={() => warmSlide(slide)}
+                          onClick={() => {
+                            if (highlight) storeHighlightRoute(highlight);
+                            else storeWatchRoute(slide);
+                          }}
+                          aria-label={`Watch ${slide.title}`}
+                        >
+                          {cardContent}
+                        </Link>
+                      )
+                    ) : cardContent}
+                  </div>
                 );
               })}
             </div>
-            <button
-              type="button"
-              aria-label="Next football slide"
-              onClick={() => {
-                pauseAutoplay();
-                nextSlide();
-              }}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-black/45 text-white shadow-premium backdrop-blur transition hover:bg-white/12"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
           </div>
-        </div>
+          <div className="absolute bottom-7 right-0 z-20 w-[min(48vw,560px)] pr-5 sm:pr-8 lg:pr-10 max-md:hidden">
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                aria-label="Previous football slide"
+                onClick={() => {
+                  pauseAutoplay();
+                  previousSlide();
+                }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-black/45 text-white shadow-premium backdrop-blur transition hover:bg-white/12"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div
+                ref={desktopCarouselRef}
+                onPointerDown={handleDesktopCarouselPointerDown}
+                onPointerMove={handleDesktopCarouselPointerMove}
+                onPointerUp={handleDesktopCarouselPointerUp}
+                onPointerCancel={handleDesktopCarouselPointerUp}
+                className="no-scrollbar flex w-[min(36vw,430px)] cursor-grab snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-visible scroll-smooth py-2 pr-[clamp(3.75rem,7vw,6rem)] active:cursor-grabbing xl:w-[460px]"
+              >
+                {thumbnailSlides.map(({ slide, index }) => {
+                  const active = index === activeIndex;
+                  return (
+                    <motion.button
+                      key={slideRenderKey(slide)}
+                      type="button"
+                      onClick={() => handleDesktopThumbClick(index)}
+                      onMouseEnter={() => warmSlide(slide)}
+                      onFocus={() => warmSlide(slide)}
+                      animate={{ y: active ? -2 : 0, scale: active ? 1 : 0.96, opacity: active ? 1 : 0.76 }}
+                      whileHover={{ opacity: 1, y: -2 }}
+                      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                      className={cn(
+                        "group relative h-[82px] w-[168px] shrink-0 snap-start overflow-hidden rounded-xl border bg-black/45 text-left shadow-premium backdrop-blur outline-none transition-colors xl:h-[92px] xl:w-[184px]",
+                        active ? "border-white/80 shadow-[0_0_28px_rgba(255,255,255,0.22)]" : "border-white/12 hover:border-white/45"
+                      )}
+                      aria-label={`Show ${slide.title}`}
+                      aria-current={active ? "true" : undefined}
+                    >
+                      <SafeImage src={slide.thumbnail} fallbackSrc={slide.thumbnail} alt={slide.title} fill sizes="(min-width: 1280px) 184px, 168px" unoptimized className="object-cover object-[right_center] transition duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.44)_52%,rgba(0,0,0,0.12)_100%)]" />
+                      <div className="absolute inset-x-0 bottom-0 p-2.5 pr-10">
+                        <span className={cn(
+                          "mb-1.5 inline-flex rounded-full px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.1em]",
+                          slide.live || !isMatchSlide(slide) ? "bg-studio-accent text-white" : "bg-yellow-400 text-black"
+                        )}>{statusBadgeLabel(slide)}</span>
+                        <p className="line-clamp-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-white/62">{slide.competition}</p>
+                        <h2 className="mt-0.5 line-clamp-2 max-w-[7.5rem] text-[11px] font-semibold leading-tight tracking-normal text-white xl:max-w-[8.5rem] xl:text-xs">{slide.title}</h2>
+                      </div>
+                      <span className="absolute bottom-2.5 right-2.5 grid h-7 w-7 place-items-center rounded-full bg-white text-black shadow-premium transition group-hover:scale-105">
+                        <Play className="h-3.5 w-3.5 fill-black" />
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                aria-label="Next football slide"
+                onClick={() => {
+                  pauseAutoplay();
+                  nextSlide();
+                }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-black/45 text-white shadow-premium backdrop-blur transition hover:bg-white/12"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         </>
       ) : null}
     </section>

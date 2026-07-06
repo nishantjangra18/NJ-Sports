@@ -27,17 +27,86 @@ function uniqueHighlights(items: OfficialHighlight[]) {
   });
 }
 
-export function ForYouSection({ highlights }: ForYouSectionProps) {
+import { useMls2026Highlights } from "@/hooks/useStreamedData";
+
+function getHighlightCategory(item: OfficialHighlight): "mls" | "ucl" | "international" | null {
+  if (item.category === "mls-2026" || item.source?.toLowerCase() === "mls" || item.title.toLowerCase().includes("mls") || item.channelTitle?.toLowerCase().includes("mls")) {
+    return "mls";
+  }
+  if (item.category === "fifa-world-cup-2026" || item.source?.toLowerCase() === "fifa" || item.title.toLowerCase().includes("world cup") || item.title.toLowerCase().includes("fifa")) {
+    return "international";
+  }
+  if (item.category === "uefa-champions-league" || item.source?.toLowerCase() === "ucl" || item.title.toLowerCase().includes("champions league") || item.title.toLowerCase().includes("ucl")) {
+    return "ucl";
+  }
+  return null;
+}
+
+export function ForYouSection({ highlights: passedHighlights }: ForYouSectionProps) {
   const auth = useAuth();
   const { preferences, ready } = useTeamPreferences();
+  const mlsHighlights = useMls2026Highlights();
   const selectedTeams = useMemo(() => getSelectedTeams(preferences), [preferences]);
 
+  // Determine active preference categories using strict mapping rules (e.g. Inter Miami CF/Inter Miami -> mls)
+  const activeCategories = useMemo(() => {
+    const categories = new Set<"mls" | "ucl" | "international">();
+    if (!ready) return categories;
+
+    if (preferences.internationalTeams.length > 0) {
+      categories.add("international");
+    }
+
+    for (const team of preferences.clubTeams) {
+      if (
+        team === "Inter Miami" ||
+        team === "Inter Miami CF" ||
+        team === "LA Galaxy" ||
+        team === "Los Angeles FC" ||
+        team === "New York City FC" ||
+        team === "Atlanta United" ||
+        team === "Seattle Sounders" ||
+        team === "Toronto FC"
+      ) {
+        categories.add("mls");
+      } else {
+        categories.add("ucl");
+      }
+    }
+
+    return categories;
+  }, [preferences, ready]);
+
   const personalizedHighlights = useMemo(() => {
-    const source = uniqueHighlights(highlights).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-    if (!auth.user || !ready || selectedTeams.length === 0) return [];
-    const filtered = source.filter((item) => selectedTeams.some((team) => highlightMentionsTeam(item, team)));
-    return (filtered.length > 0 ? filtered : source).slice(0, 10);
-  }, [auth.user, highlights, ready, selectedTeams]);
+    if (!auth.user || !ready || selectedTeams.length === 0 || activeCategories.size === 0) return [];
+
+    // Tag and combine all highlight pools
+    const mlsList = (mlsHighlights.data ?? []).map(item => ({
+      ...item,
+      category: "mls-2026" as const,
+      source: item.source || "mls"
+    }));
+
+    const allHighlights = uniqueHighlights([...passedHighlights, ...mlsList]);
+
+    // 1. Fetch all highlights in user's selected categories
+    const categoryFiltered = allHighlights.filter((item) => {
+      const cat = getHighlightCategory(item);
+      return cat && activeCategories.has(cat);
+    });
+
+    // 2. Refine category-filtered highlights using team mentions (secondary filter)
+    const teamMatched = categoryFiltered.filter((item) =>
+      selectedTeams.some((team) => highlightMentionsTeam(item, team))
+    );
+
+    // 3. Fallback: If no matches are found, return all highlights in that category as a fallback guarantee
+    const finalSelection = teamMatched.length > 0 ? teamMatched : categoryFiltered;
+
+    return finalSelection
+      .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
+      .slice(0, 10);
+  }, [auth.user, passedHighlights, mlsHighlights.data, ready, selectedTeams, activeCategories]);
 
   if (!auth.user || !ready || selectedTeams.length === 0 || personalizedHighlights.length === 0) return null;
 

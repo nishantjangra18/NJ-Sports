@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, BarChart3, Check, Cloud, Heart, Maximize, Minimize } from "lucide-react";
@@ -267,13 +267,73 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const [mobileLandscapeSimulated, setMobileLandscapeSimulated] = useState(false);
   const [matchCenterOpen, setMatchCenterOpen] = useState(false);
   const [isExitingStream, setIsExitingStream] = useState(false);
+  const mobilePlayerWrapperRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(isMobileViewport());
+    const handleResize = () => {
+      setIsMobile(isMobileViewport());
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function toggleMobileFullscreen() {
+    setIsFullscreen((prev) => !prev);
+  }
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isFullscreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobile, isFullscreen]);
+
+  const [mobileControlsVisible, setMobileControlsVisible] = useState(true);
+  const mobileControlsTimer = useRef<number | null>(null);
+
+  function showMobileControlsTemporarily() {
+    setMobileControlsVisible(true);
+    if (mobileControlsTimer.current) window.clearTimeout(mobileControlsTimer.current);
+    mobileControlsTimer.current = window.setTimeout(() => setMobileControlsVisible(false), 3000);
+  }
+
+  useEffect(() => {
+    if (isMobile && isFullscreen) {
+      showMobileControlsTemporarily();
+    }
+  }, [isMobile, isFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      if (mobileControlsTimer.current) window.clearTimeout(mobileControlsTimer.current);
+    };
+  }, []);
+
+  function handleMobilePlayerTap(event: React.MouseEvent<HTMLDivElement>) {
+    if (!isMobile) return;
+    const targetElement = event.target as HTMLElement;
+    if (targetElement.closest("button")) return;
+    showMobileControlsTemporarily();
+  }
   const streamList = streams.data ?? [];
   const activeStream = isExitingStream ? null : streamList[activeStreamIndex] ?? streamList[0];
   const resolvedActiveIndex = activeStream ? Math.max(0, streamList.indexOf(activeStream)) : 0;
   const activeKey = activeStream ? streamKey(activeStream, resolvedActiveIndex) : "";
   const activeLabel = activeStream ? streamLabel(activeStream, resolvedActiveIndex, recommendedIndex) : "Stream";
   const activeDiagnostics = activeStream ? getPlayerDiagnostics(activeStream) : null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const title = target.title ?? "Live Stream";
+  const displayTitle = mounted ? title : "Live Stream";
   const resumeTime = getResumeTimeFromSearch(searchParams.toString());
   const isLiveMatch = target.live === true;
   const isPlayerLoading = !isExitingStream && (target.isResolving || streams.isLoading || (!activeStream && Boolean(target.source && target.id)));
@@ -295,12 +355,13 @@ export function PlayerExperience({ slug }: { slug: string }) {
   }
 
   useEffect(() => {
+    if (isMobile) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -379,7 +440,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!activeStream) return;
-    void enterMobileCinemaMode();
+    if (!isMobileViewport()) {
+      void enterMobileCinemaMode();
+    }
     setSwitching(true);
     if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
     iframeLoadTimer.current = window.setTimeout(() => handleStreamFailure("Stream did not respond."), iframeLoadTimeoutMs);
@@ -424,7 +487,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
   function handleStreamReady() {
     if (iframeLoadTimer.current) window.clearTimeout(iframeLoadTimer.current);
-    void enterMobileCinemaMode();
+    if (!isMobileViewport()) {
+      void enterMobileCinemaMode();
+    }
     setSwitching(false);
     setPreviousWorkingIndex(resolvedActiveIndex);
     setFailedKeys((current) => {
@@ -571,6 +636,241 @@ export function PlayerExperience({ slug }: { slug: string }) {
     await container.requestFullscreen();
   }
 
+  if (!mounted) {
+    return (
+      <Shell immersive>
+        <section
+          ref={playerContainerRef}
+          className="fixed inset-0 h-screen w-screen overflow-hidden bg-black text-white"
+        >
+          <div className="absolute inset-0 overflow-hidden bg-black">
+            <PlayerSkeleton />
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/78 via-black/32 to-transparent px-5 pb-16 pt-5 sm:px-8 max-md:px-4 max-md:pb-20 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <div className="pointer-events-auto flex items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-4">
+                  <PlayerIconButton label="Back" onClick={(event) => void handleBack(event)}>
+                    <ArrowLeft className="h-5 w-5" />
+                  </PlayerIconButton>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/58">Now Watching</p>
+                    <h1 className="truncate text-base font-semibold tracking-normal text-white sm:text-xl">Live Stream</h1>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <PlayerIconButton label="Favorite" active={false}>
+                    <Heart className="h-5 w-5" />
+                  </PlayerIconButton>
+                  <PlayerIconButton label="Server" active={false}>
+                    <Cloud className="h-5 w-5" />
+                  </PlayerIconButton>
+                  <PlayerIconButton label="Fullscreen" active={false}>
+                    <Maximize className="h-5 w-5" />
+                  </PlayerIconButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Shell>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Shell immersive>
+        <div className={cn("flex flex-col bg-black text-white", isFullscreen ? "h-screen w-screen overflow-hidden" : "min-h-screen")}>
+          {/* Header */}
+          {!isFullscreen && (
+            <header className="sticky top-0 z-50 flex items-center h-14 border-b border-white/10 bg-neutral-950 px-4">
+              <button
+                onClick={(e) => void handleBack(e)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-neutral-300 hover:text-white transition"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+              </button>
+              <div className="flex-1 text-center pr-12">
+                <h1 className="text-base font-bold truncate px-4">{displayTitle}</h1>
+              </div>
+            </header>
+          )}
+
+          {/* Main content */}
+          <main className={cn("flex-1 flex flex-col gap-4 max-w-lg mx-auto w-full", isFullscreen ? "p-0 justify-center h-full" : "p-4")}>
+            {/* Controls row: Dropdown and Fullscreen Button */}
+            {!isFullscreen && (
+              <div className="flex items-end justify-between gap-4">
+                {/* Server selector */}
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                  <label htmlFor="mobile-server-select" className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                    Select Server
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="mobile-server-select"
+                      value={resolvedActiveIndex}
+                      onChange={(e) => switchServer(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-white/10 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-studio-accent/50 appearance-none transition"
+                    >
+                      {streamList.map((stream, index) => (
+                        <option key={streamKey(stream, index)} value={index}>
+                          Server {index + 1} ({streamSourceLabel(stream, index)})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-400">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fullscreen Button */}
+                <button
+                  type="button"
+                  onClick={toggleMobileFullscreen}
+                  className="flex items-center justify-center gap-2 bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-neutral-800 transition shadow-sm h-[42px]"
+                >
+                  <Maximize className="h-4 w-4 text-neutral-300" />
+                  <span>Fullscreen</span>
+                </button>
+              </div>
+            )}
+
+            {/* Stream Player Section */}
+            <div
+              ref={mobilePlayerWrapperRef}
+              onClick={handleMobilePlayerTap}
+              className={cn(
+                isFullscreen
+                  ? "fixed inset-0 w-screen h-screen z-[9999] bg-black flex items-center justify-center overflow-hidden portrait:w-[100dvh] portrait:h-[100dvw] portrait:rotate-90 portrait:left-1/2 portrait:top-1/2 portrait:-translate-x-1/2 portrait:-translate-y-1/2"
+                  : "relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/5 shadow-2xl"
+              )}
+            >
+              {activeStream && activeDiagnostics ? (
+                activeDiagnostics.renderMode === "html5-video" || activeDiagnostics.renderMode === "hls-js" ? (
+                  <NativeStreamPlayer
+                    key={activeKey}
+                    stream={activeStream}
+                    title={activeLabel}
+                    startTime={resumeTime}
+                    onReady={handleStreamReady}
+                    onError={handleStreamFailure}
+                    onProgress={saveContinueProgress}
+                  />
+                ) : (
+                  <iframe
+                    key={activeKey}
+                    src={activeStream.embedUrl}
+                    title={activeLabel}
+                    allow="fullscreen; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    referrerPolicy="no-referrer-when-downgrade"
+                    onLoad={handleStreamReady}
+                    onError={() => handleStreamFailure()}
+                    className="absolute inset-0 h-full w-full border-0"
+                  />
+                )
+              ) : null}
+
+              {/* Overlays for loading / switching / error states */}
+              {!isExitingStream && isPlayerLoading ? (
+                <PlayerSkeleton />
+              ) : !isExitingStream && streams.isError ? (
+                <div className="absolute inset-0 grid place-items-center bg-black px-6 text-center z-10">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Unable to load stream</h2>
+                    <button
+                      type="button"
+                      onClick={() => void streams.refetch()}
+                      className="mt-3 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black transition hover:scale-[1.02]"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : !isExitingStream && !activeStream ? (
+                <div className="absolute inset-0 grid place-items-center bg-black px-6 text-center z-10">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">No stream servers available</h2>
+                    <button
+                      type="button"
+                      onClick={target.retry}
+                      className="mt-3 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black transition hover:scale-[1.02]"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {!isExitingStream && switching ? (
+                <div className="absolute inset-0 z-20 grid place-items-center bg-black/80 backdrop-blur-sm">
+                  <div className="text-center">
+                    <div className="mx-auto h-10 w-10 animate-pulse rounded-full border border-white/20 bg-white/10" />
+                    <p className="mt-3 text-xs font-semibold text-white/70">Loading stream...</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Controls overlay when in fullscreen on mobile */}
+              {isFullscreen && (
+                <>
+                  {/* Back button (Top Left) */}
+                  <div
+                    className={cn(
+                      "absolute top-4 left-4 z-50 transition-opacity duration-300",
+                      mobileControlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => void handleBack(e)}
+                      className="bg-black/60 hover:bg-black/80 border border-white/10 rounded-full px-4 py-2 text-sm font-semibold text-white transition flex items-center gap-1.5 backdrop-blur-md shadow-md"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      <span>Back</span>
+                    </button>
+                  </div>
+
+                  {/* Minimize button (Top Right) */}
+                  <div
+                    className={cn(
+                      "absolute top-4 right-4 z-50 transition-opacity duration-300",
+                      mobileControlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleMobileFullscreen}
+                      className="p-3 bg-black/60 hover:bg-black/80 text-white rounded-full transition shadow-md border border-white/10 backdrop-blur-md"
+                    >
+                      <Minimize className="h-5 w-5" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Warning / Info Box */}
+            {!isFullscreen && (
+              <div className="bg-neutral-900/60 border border-white/5 rounded-xl p-3.5 flex gap-3 text-neutral-300">
+                <span className="text-lg leading-none select-none">⚠️</span>
+                <div className="flex flex-col gap-0.5">
+                  <h4 className="text-xs font-bold text-white">Important Note</h4>
+                  <p className="text-[11px] leading-relaxed text-neutral-400">
+                    If stream is slow or not working, match may not have started or server may be overloaded. Try switching server or refreshing page.
+                  </p>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell immersive>
       <section
@@ -662,7 +962,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
               </PlayerIconButton>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/58">Now Watching</p>
-                <h1 className="truncate text-base font-semibold tracking-normal text-white sm:text-xl">{title}</h1>
+                <h1 className="truncate text-base font-semibold tracking-normal text-white sm:text-xl">{displayTitle}</h1>
               </div>
             </div>
 
