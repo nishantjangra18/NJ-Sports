@@ -1,5 +1,12 @@
-import { CompetitionHighlightsPage } from "@/components/CompetitionHighlightsPage";
+import { MlsHighlightsSection } from "@/components/MlsHighlightsSection";
+import { Shell } from "@/components/Shell";
 
 export default function Mls2026HighlightsPage() {
-  return <CompetitionHighlightsPage category="mls-2026" />;
+  return (
+    <Shell>
+      <div className="pb-12 pt-8">
+        <MlsHighlightsSection />
+      </div>
+    </Shell>
+  );
 }

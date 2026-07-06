@@ -31,6 +31,6 @@ export function MlsHighlightsSection() {
     );
   }
 
-  return <HighlightRow title="MLS 2026 Highlights" items={items} variant="carousel" seeAllHref="/highlights/mls-2026" />;
+  return <HighlightRow title="MLS 2026 Highlights" items={items} variant="carousel" />;
 }
 
