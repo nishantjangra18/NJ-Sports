@@ -651,22 +651,36 @@ export function PlayerExperience({ slug }: { slug: string }) {
 
 
   async function handleBack(event?: MouseEvent<HTMLButtonElement>) {
-    if (isMobileStreamDevice()) {
-      event?.preventDefault();
-      event?.stopPropagation();
-      resetMobileStreamStateForExit();
-      if (document.fullscreenElement === playerContainerRef.current) {
-        try {
-          await document.exitFullscreen();
-        } catch {
-          // Browser already handled fullscreen exit.
-        }
-      }
-      router.back();
-      return;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
 
-    router.back();
+    setIsExitingStream(true);
+    resetMobileStreamStateForExit();
+
+    if (document.fullscreenElement === playerContainerRef.current) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // Browser already handled fullscreen exit.
+      }
+    }
+
+    let targetPath = "/";
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.includes("/highlights")) {
+        targetPath = "/highlights";
+      } else if (path.includes("/world-cup")) {
+        targetPath = "/world-cup-2026";
+      } else if (path.includes("/live") || path.includes("/matches")) {
+        targetPath = "/live";
+      }
+      window.location.href = targetPath;
+    } else {
+      router.push(targetPath);
+    }
   }
 
   function handlePlayerTap(event: PointerEvent<HTMLElement>) {
