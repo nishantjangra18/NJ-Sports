@@ -1,4 +1,4 @@
-﻿export type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league" | "mls-2026";
+export type HighlightCategory = "fifa-world-cup-2026" | "uefa-champions-league" | "mls-2026";
 
 export type OfficialHighlight = {
   id: string;
@@ -143,7 +143,8 @@ export async function getHighlightCompetitions(): Promise<HighlightCompetition[]
   const data = await getOfficialHighlightResponse();
   const competitions: HighlightCompetition[] = [
     { id: "fifa-world-cup-2026", title: "FIFA World Cup", href: "/highlights/fifa-world-cup-2026", items: data.fifaWorldCup2026 ?? [] },
-    { id: "uefa-champions-league", title: "UEFA Champions League", href: "/highlights/uefa-champions-league", items: data.uefaChampionsLeague ?? [] }
+    { id: "uefa-champions-league", title: "UEFA Champions League", href: "/highlights/uefa-champions-league", items: data.uefaChampionsLeague ?? [] },
+    { id: "mls-2026", title: "MLS 2026 Highlights", href: "/highlights/mls-2026", items: data.mls2026 ?? [] }
   ];
   return competitions.filter((competition) => competition.items.length > 0);
 }
