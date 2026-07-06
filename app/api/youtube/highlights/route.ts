@@ -226,20 +226,17 @@ async function writeCache(cache: HighlightCache) {
   return memoryCache;
 }
 
-async function fetchFifaSearchPage(apiKey: string, pageToken?: string) {
-  const url = new URL("https://youtube.googleapis.com/youtube/v3/search");
-  url.searchParams.set("part", "snippet");
-  url.searchParams.set("channelId", fifaChannelId);
-  url.searchParams.set("q", "FIFA World Cup Highlights");
-  url.searchParams.set("type", "video");
-  url.searchParams.set("order", "date");
+async function fetchFifaPlaylistPage(apiKey: string, pageToken?: string) {
+  const url = new URL("https://youtube.googleapis.com/youtube/v3/playlistItems");
+  url.searchParams.set("part", "snippet,contentDetails");
+  url.searchParams.set("playlistId", "UUpcTrCXblq78GZrTUTLWeBw");
   url.searchParams.set("maxResults", "50");
   url.searchParams.set("key", apiKey);
   if (pageToken) url.searchParams.set("pageToken", pageToken);
 
   const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
-  const data = (await response.json()) as YouTubeSearchResponse;
-  console.log("[YouTube Highlights] FIFA search", {
+  const data = (await response.json()) as YouTubePlaylistResponse;
+  console.log("[YouTube Highlights] FIFA playlistItems", {
     requestUrl: url.toString().replace(/([?&]key=)[^&]+/, "$1[REDACTED]"),
     pageToken: pageToken ?? "none",
     responseStatus: response.status,
@@ -249,10 +246,10 @@ async function fetchFifaSearchPage(apiKey: string, pageToken?: string) {
 }
 
 async function fetchFifaItems(apiKey: string) {
-  const items: YouTubeSearchItem[] = [];
+  const items: YouTubePlaylistItem[] = [];
   let pageToken: string | undefined;
-  for (let page = 0; page < 10; page += 1) {
-    const data = await fetchFifaSearchPage(apiKey, pageToken);
+  for (let page = 0; page < 4; page += 1) {
+    const data = await fetchFifaPlaylistPage(apiKey, pageToken);
     items.push(...(data.items ?? []));
     pageToken = data.nextPageToken;
     if (!pageToken) break;
@@ -360,16 +357,18 @@ async function syncHighlights() {
     console.error("[YouTube Highlights] MLS playlist failed", error);
   }
   const allVideoIds = Array.from(new Set([
-    ...fifaItems.map((item) => item.id?.videoId),
+    ...fifaItems.map((item) => item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId),
     ...uefaItems.map((item) => item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId),
     ...mlsItems.map((item) => item.snippet?.resourceId?.videoId)
   ].filter((id): id is string => Boolean(id))));
   const embeddability = await fetchVideoEmbeddability(allVideoIds, apiKey);
 
   const fifaHighlights = fifaItems.flatMap((item) => {
-    const videoId = item.id?.videoId;
+    const videoId = item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId;
     if (!videoId) return [];
-    const highlight = makeHighlight({ videoId, snippet: item.snippet, embeddable: false, category: "fifa-world-cup-2026", source: "FIFA", forceExternal: true });
+    const publishedAt = item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt;
+    const snippet = { ...item.snippet, publishedAt };
+    const highlight = makeHighlight({ videoId, snippet, embeddable: false, category: "fifa-world-cup-2026", source: "FIFA", forceExternal: true });
     return highlight ? [highlight] : [];
   });
 
