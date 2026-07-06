@@ -41,6 +41,36 @@ function streamLanguageLabel(stream: StreamedStream) {
   return stream.language?.trim() || "Default";
 }
 
+function mobileServerLabel(stream: StreamedStream, index: number) {
+  const language = stream.language?.trim();
+  const source = stream.serverName?.trim() || stream.source?.trim();
+  const quality = stream.quality?.trim();
+
+  if (language && source && quality) {
+    const combinedSource = source.toLowerCase().includes(quality.toLowerCase()) ? source : `${source} ${quality}`;
+    return `${language} • ${combinedSource}`;
+  }
+
+  if (language && source) {
+    return `${language} • ${source}`;
+  }
+
+  if (language && quality) {
+    return `${language} • ${quality} Stream`;
+  }
+
+  if (quality && source) {
+    const hasQuality = source.toLowerCase().includes(quality.toLowerCase());
+    return hasQuality ? source : `${quality} Stream • ${source}`;
+  }
+
+  if (language) return language;
+  if (source) return source;
+  if (quality) return `${quality} Stream`;
+
+  return `Server ${index + 1}`;
+}
+
 function nextCandidateIndex(streams: StreamedStream[], failedKeys: Set<string>, currentIndex: number) {
   for (let offset = 1; offset <= streams.length; offset += 1) {
     const candidateIndex = (currentIndex + offset) % streams.length;
@@ -767,7 +797,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
                     >
                       {streamList.map((stream, index) => (
                         <option key={streamKey(stream, index)} value={index}>
-                          Server {index + 1} ({streamSourceLabel(stream, index)})
+                          {mobileServerLabel(stream, index)}
                         </option>
                       ))}
                     </select>
