@@ -11,6 +11,12 @@ const WatchHistorySchema = new Schema({
   lastWatchedAt: { type: Date, default: Date.now }
 }, { _id: false });
 
+const ActivityLogSchema = new Schema({
+  action: { type: String, required: true },
+  details: { type: String, default: "" },
+  timestamp: { type: Date, default: Date.now }
+}, { _id: false });
+
 const UserSchema = new Schema({
   name: { type: String, trim: true, default: "" },
   email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
@@ -18,6 +24,9 @@ const UserSchema = new Schema({
   avatar: { type: String, trim: true, default: "" },
   profilePic: { type: String, trim: true, default: "" },
   profileImage: { type: String, trim: true, default: "" },
+  role: { type: String, enum: ["user", "admin"], default: "user" },
+  lastLogin: { type: Date, default: null },
+  activityLogs: { type: [ActivityLogSchema], default: [] },
   preferences: {
     internationalTeam: { type: String, trim: true, default: "" },
     clubTeam: { type: String, trim: true, default: "" }
@@ -30,4 +39,8 @@ const UserSchema = new Schema({
 
 export type UserDocument = InferSchemaType<typeof UserSchema> & { _id: mongoose.Types.ObjectId };
 
-export const User: Model<UserDocument> = mongoose.models.User as Model<UserDocument> || mongoose.model<UserDocument>("User", UserSchema);
+if (mongoose.models.User) {
+  delete mongoose.models.User;
+}
+
+export const User: Model<UserDocument> = mongoose.model<UserDocument>("User", UserSchema);

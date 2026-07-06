@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode, SVGProps } from "react";
-import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Heart, Home, Search, Settings, Trophy, UserCircle, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Clapperboard, Heart, Home, Search, Settings, Shield, Trophy, UserCircle, X } from "lucide-react";
 import { FootballIcon } from "@/components/SportsIcons";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cn } from "@/lib/utils";
@@ -230,6 +230,15 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
   const [searchOpen, setSearchOpen] = useState(false);
   const auth = useAuth();
 
+  const isAdmin = auth.user?.role === "admin";
+  const sidebarTopNavItems = useMemo(() => {
+    const items = [...topNavItems];
+    if (isAdmin) {
+      items.push({ label: "Admin", icon: Shield, href: "/admin" });
+    }
+    return items;
+  }, [isAdmin]);
+
   function handleProfileRequest() {
     router.push(auth.user ? "/profile" : "/login");
   }
@@ -262,7 +271,7 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
 
           <nav className="mt-8 flex flex-1 flex-col justify-between px-0" aria-label="Primary navigation">
             <div className="space-y-2 px-0">
-              {topNavItems.map((item) => (
+              {sidebarTopNavItems.map((item) => (
                 <SidebarItem
                   key={item.label}
                   item={item}

@@ -11,6 +11,7 @@ export type AuthUser = {
   avatar: string;
   profilePic: string;
   profileImage: string;
+  role: string;
   preferences: {
     internationalTeam: string;
     clubTeam: string;
@@ -91,6 +92,7 @@ export function serializeAuthUser(user: UserDocument | null): AuthUser | null {
     avatar: profileImage,
     profilePic: profileImage,
     profileImage,
+    role: (user as any).role ?? "user",
     preferences: {
       internationalTeam,
       clubTeam
@@ -162,4 +164,36 @@ export function validateEmail(value: unknown) {
 
 export function validatePassword(value: unknown) {
   return typeof value === "string" && value.length >= 6 ? value : "";
+}
+
+export async function logUserActivity(user: any, action: string, details: string, matchId?: string) {
+  try {
+    if (!user) return;
+    if (!Array.isArray(user.activityLogs)) {
+      user.activityLogs = [];
+    }
+
+    // Rate-limiting check for duplicate watch logs within 5 minutes
+    if (action === "watch_video" && matchId) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentLog = user.activityLogs.find((log: any) => 
+        log.action === "watch_video" && 
+        log.details.includes(matchId) && 
+        log.timestamp > fiveMinutesAgo
+      );
+      if (recentLog) return; // skip logging duplicate watch progress
+    }
+
+    user.activityLogs.push({
+      action,
+      details,
+      timestamp: new Date()
+    });
+
+    if (user.activityLogs.length > 200) {
+      user.activityLogs.shift();
+    }
+  } catch (err) {
+    console.error("Failed to log activity:", err);
+  }
 }

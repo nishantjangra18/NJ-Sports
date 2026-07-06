@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import { normalizeStringArray, requireAuth, serializeAuthUser } from "@/lib/auth/server";
+import { logUserActivity, normalizeStringArray, requireAuth, serializeAuthUser } from "@/lib/auth/server";
 
 export const runtime = "nodejs";
 
@@ -97,6 +97,11 @@ async function updateProfile(request: Request) {
       auth.user.isProfileComplete = Boolean(internationalTeam || clubTeam || auth.user.profileImage || auth.user.profilePic || auth.user.avatar);
     }
 
+    await logUserActivity(
+      auth.user,
+      "change_preferences",
+      `Updated profile preferences - Name: "${auth.user.name}", International: "${auth.user.preferences?.internationalTeam || "None"}", Club: "${auth.user.preferences?.clubTeam || "None"}"`
+    );
     await auth.user.save();
 
     return NextResponse.json({ user: serializeAuthUser(auth.user) });

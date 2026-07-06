@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mapWatchHistory, requireAuth } from "@/lib/auth/server";
+import { logUserActivity, mapWatchHistory, requireAuth } from "@/lib/auth/server";
 
 const maxItems = 30;
 const completionBufferSeconds = 10;
@@ -59,9 +59,10 @@ export async function POST(request: Request) {
     const shouldKeep = watchedTime > 0 && duration > 0 && watchedTime < duration - completionBufferSeconds;
 
     if (shouldKeep) {
+      const title = normalizeString(body.title, 220);
       current.unshift({
         matchId,
-        title: normalizeString(body.title, 220),
+        title,
         thumbnail: normalizeString(body.thumbnail, 1000),
         url: normalizeString(body.url, 1000),
         progress,
@@ -69,6 +70,19 @@ export async function POST(request: Request) {
         watchedTime,
         lastWatchedAt: new Date()
       });
+
+      // Track log activity
+      const isHighlight = matchId.startsWith("highlight:");
+      const cleanMatchId = isHighlight ? matchId.replace("highlight:", "") : matchId;
+      const action = isHighlight ? "highlight_interaction" : "watch_video";
+      const actionText = isHighlight ? "Viewed highlight video" : "Started watching match";
+
+      await logUserActivity(
+        auth.user,
+        action,
+        `${actionText}: "${title}" (ID: ${cleanMatchId})`,
+        matchId
+      );
     }
 
     auth.user.set("watchHistory", current.slice(0, maxItems));

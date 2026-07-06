@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeStringArray, requireAuth, serializeAuthUser } from "@/lib/auth/server";
+import { logUserActivity, normalizeStringArray, requireAuth, serializeAuthUser } from "@/lib/auth/server";
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +16,12 @@ export async function POST(request: Request) {
     auth.user.favoriteInternationalTeams = internationalTeam ? [internationalTeam] : [];
     auth.user.favoriteClubTeams = clubTeam ? [clubTeam] : [];
     auth.user.isProfileComplete = Boolean(internationalTeam || clubTeam || auth.user.profilePic);
+
+    await logUserActivity(
+      auth.user,
+      "change_preferences",
+      `Completed onboarding preferences - International: "${internationalTeam || "None"}", Club: "${clubTeam || "None"}"`
+    );
     await auth.user.save();
 
     return NextResponse.json({ user: serializeAuthUser(auth.user) });

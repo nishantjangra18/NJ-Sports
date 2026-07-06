@@ -11,6 +11,7 @@ import {
   LogOut,
   Search,
   Settings,
+  Shield,
   UploadCloud,
   UserCircle,
   X
@@ -326,6 +327,17 @@ export function ProfileExperience() {
                   >
                     <Settings className="h-5 w-5" />
                   </button>
+                  {auth.user.role === "admin" ? (
+                    <button
+                      type="button"
+                      onClick={() => router.push("/admin")}
+                      className="inline-flex h-12 items-center gap-2 rounded-full border border-red-500/22 bg-red-500/[0.09] px-5 text-sm font-bold text-red-200 transition duration-300 hover:scale-[1.02] hover:border-red-500/40 hover:bg-red-500/[0.15] hover:shadow-[0_0_30px_rgba(239,68,68,0.22)]"
+                      aria-label="Admin Dashboard"
+                      title="Admin Dashboard"
+                    >
+                      <Shield className="h-4 w-4" /> Admin
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={handleLogout}

@@ -7,6 +7,7 @@ export type ClientUser = {
   avatar?: string;
   profilePic: string;
   profileImage?: string;
+  role?: string;
   preferences: {
     internationalTeam: string;
     clubTeam: string;

@@ -10,6 +10,7 @@ import { Shell } from "@/components/Shell";
 import { cn } from "@/lib/utils";
 import { getResumeTimeFromSearch, upsertContinueWatchingItem } from "@/lib/continueWatching";
 import { useStreams, useWatchRouteTarget } from "@/hooks/useStreamedData";
+import { useAuth } from "@/hooks/useAuth";
 import type { StreamedStream } from "@/services/api/types";
 
 const iframeLoadTimeoutMs = 12000;
@@ -248,6 +249,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
   const target = useWatchRouteTarget(slug);
   const streams = useStreams(target.source, target.id);
+  const auth = useAuth();
   const playerContainerRef = useRef<HTMLElement | null>(null);
   const hideControlsTimer = useRef<number | null>(null);
   const iframeLoadTimer = useRef<number | null>(null);
@@ -278,6 +280,57 @@ export function PlayerExperience({ slug }: { slug: string }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!auth.user || !slug) return;
+
+    const sendHeartbeat = (status: "active" | "inactive" = "active") => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      };
+      if (auth.token) {
+        headers["Authorization"] = `Bearer ${auth.token}`;
+      }
+
+      if (status === "inactive" && typeof navigator !== "undefined" && navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify({ streamId: slug, streamTitle: target.title || slug, status })], {
+          type: "application/json"
+        });
+        navigator.sendBeacon("/api/live-stream/heartbeat", blob);
+        return;
+      }
+
+      fetch("/api/live-stream/heartbeat", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          streamId: slug,
+          streamTitle: target.title || slug,
+          status
+        }),
+        keepalive: true
+      }).catch(() => {});
+    };
+
+    sendHeartbeat("active");
+
+    const timer = window.setInterval(() => {
+      sendHeartbeat("active");
+    }, 5000);
+
+    const handleBeforeUnload = () => {
+      sendHeartbeat("inactive");
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      sendHeartbeat("inactive");
+    };
+  }, [auth.user, auth.token, slug, target.title]);
 
   function toggleMobileFullscreen() {
     setIsFullscreen((prev) => !prev);

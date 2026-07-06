@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { connectMongoDB } from "@/lib/db/mongoose";
-import { createToken, serializeAuthUser, validateEmail, validatePassword } from "@/lib/auth/server";
+import { createToken, logUserActivity, serializeAuthUser, validateEmail, validatePassword } from "@/lib/auth/server";
 import { User } from "@/models/User";
 
 export async function POST(request: Request) {
@@ -19,10 +19,30 @@ export async function POST(request: Request) {
     const existingUser = await User.findOne({ email }).select("_id");
     if (existingUser) return NextResponse.json({ error: "Email is already registered" }, { status: 409 });
 
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await User.create({ name, email, password: hashedPassword, isProfileComplete: false });
-    const token = createToken(user);
+    const adminEmail = (process.env.ADMIN_EMAIL || "nishant@njsports.admin").toLowerCase().trim();
+    const adminPass = process.env.ADMIN_PASS || "jangra146";
 
+    const isAdminEmail = email === adminEmail;
+    if (isAdminEmail && password !== adminPass) {
+      return NextResponse.json({ error: "Invalid registration parameters for admin role" }, { status: 400 });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      isProfileComplete: false,
+      role: isAdminEmail ? "admin" : "user",
+      lastLogin: new Date(),
+      activityLogs: [{
+        action: "register",
+        details: isAdminEmail ? "Admin account registered" : "User registered account",
+        timestamp: new Date()
+      }]
+    });
+
+    const token = createToken(user);
     return NextResponse.json({ token, user: serializeAuthUser(user) }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to register";
