@@ -421,8 +421,20 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
   const duplicatedItems = [...items, ...items, ...items, ...items];
 
   return (
-    <div className="fixed inset-x-0 bottom-[68px] md:bottom-0 z-20 border-t border-white/10 bg-black/85 py-3 backdrop-blur-2xl select-none overflow-hidden">
+    <div className="world-cup-ticker border-t border-white/10 bg-black/85 py-3 backdrop-blur-2xl select-none overflow-hidden">
       <style>{`
+        .world-cup-ticker {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: calc(68px + env(safe-area-inset-bottom));
+          z-index: 20;
+        }
+        @media (min-width: 768px) {
+          .world-cup-ticker {
+            bottom: 0;
+          }
+        }
         .ticker-wrap {
           width: 100%;
           overflow: hidden;
