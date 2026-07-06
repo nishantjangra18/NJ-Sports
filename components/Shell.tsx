@@ -320,6 +320,15 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
         className={cn("min-h-screen", !immersive && "max-md:pb-36 max-md:pt-16 lg:pl-[72px]")}
       >
         {children}
+
+        {!immersive && (
+          <footer className="w-full border-t border-white/5 bg-transparent py-5 text-center select-none mt-12">
+            <div className="flex flex-col items-center justify-center gap-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/44">NJ Sports</span>
+              <span className="text-[10px] font-medium tracking-normal text-white/24">Nishant Jangra</span>
+            </div>
+          </footer>
+        )}
       </motion.main>
 
       {!immersive ? (
