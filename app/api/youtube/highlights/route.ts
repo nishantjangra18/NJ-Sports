@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import fallbackHighlightCache from "@/data/highlight-cache/official-highlights.json";
 
 export const dynamic = "force-dynamic";
 
@@ -157,15 +158,70 @@ function makeHighlight(input: {
   };
 }
 
+function isHighlightCategory(value: unknown): value is HighlightCategory {
+  return value === "fifa-world-cup-2026" || value === "uefa-champions-league" || value === "mls-2026";
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeHighlight(value: unknown): CachedHighlight | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Partial<CachedHighlight>;
+  const videoId = asText(item.videoId);
+  const title = asText(item.title);
+  const category = item.category;
+  if (!videoId || !title || !isHighlightCategory(category)) return null;
+
+  const watchUrl = asText(item.watchUrl) || `https://www.youtube.com/watch?v=${videoId}`;
+  return {
+    id: asText(item.id) || `${category}-${videoId}`,
+    videoId,
+    title,
+    channelTitle: asText(item.channelTitle) || asText(item.source) || "Official Highlights",
+    channelId: asText(item.channelId),
+    publishedAt: asText(item.publishedAt) || new Date(0).toISOString(),
+    thumbnail: asText(item.thumbnail) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    href: asText(item.href) || watchUrl,
+    source: asText(item.source) || asText(item.channelTitle) || "Official Highlights",
+    embedUrl: asText(item.embedUrl),
+    watchUrl,
+    embeddable: item.embeddable === true,
+    category
+  };
+}
+
+function normalizeHighlights(value: unknown): CachedHighlight[] {
+  if (!Array.isArray(value)) return [];
+  return uniqueByVideoId(value.flatMap((item) => {
+    const highlight = normalizeHighlight(item);
+    return highlight ? [highlight] : [];
+  }));
+}
+
+function normalizeCache(value: unknown): HighlightCache {
+  if (!value || typeof value !== "object") return { version: cacheVersion, highlights: [] };
+  const cache = value as Partial<HighlightCache>;
+  return {
+    version: typeof cache.version === "number" ? cache.version : cacheVersion,
+    lastRefreshAt: asText(cache.lastRefreshAt) || undefined,
+    highlights: normalizeHighlights(cache.highlights)
+  };
+}
+
 async function readCache(): Promise<HighlightCache> {
-  return { ...memoryCache, highlights: memoryCache.highlights ?? [] };
+  const normalizedMemory = normalizeCache(memoryCache);
+  if (normalizedMemory.highlights.length > 0) return normalizedMemory;
+  return normalizeCache(fallbackHighlightCache);
 }
 
 async function writeCache(cache: HighlightCache) {
+  const normalizedCache = normalizeCache(cache);
   const unique = new Map<string, CachedHighlight>();
-  for (const highlight of cache.highlights) unique.set(highlight.videoId, highlight);
+  for (const highlight of normalizedCache.highlights) unique.set(highlight.videoId, highlight);
   const highlights = Array.from(unique.values()).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  memoryCache = { ...cache, version: cacheVersion, highlights };
+  memoryCache = { ...normalizedCache, version: cacheVersion, highlights };
   memoryCacheUpdatedAt = Date.now();
   return memoryCache;
 }
@@ -349,22 +405,27 @@ function categoryHighlights(cache: HighlightCache, category: HighlightCategory) 
 }
 
 function buildHighlightsResponse(cache: HighlightCache, cached: boolean) {
-  const fifaWorldCup2026 = categoryHighlights(cache, "fifa-world-cup-2026");
-  const uefaChampionsLeague = categoryHighlights(cache, "uefa-champions-league");
-  const mls2026 = categoryHighlights(cache, "mls-2026").slice(0, 10);
-
-  return NextResponse.json({
+  const safeCache = normalizeCache(cache);
+  const fifaWorldCup2026 = categoryHighlights(safeCache, "fifa-world-cup-2026");
+  const uefaChampionsLeague = categoryHighlights(safeCache, "uefa-champions-league");
+  const mls2026 = categoryHighlights(safeCache, "mls-2026").slice(0, 10);
+  const data = normalizeHighlights(safeCache.highlights);
+  const response = {
     success: true,
     cached,
-    data: cache.highlights,
+    data,
     source: "Official football highlights",
     channelId: fifaChannelId,
-    lastRefreshAt: cache.lastRefreshAt,
+    lastRefreshAt: safeCache.lastRefreshAt,
     highlights: fifaWorldCup2026,
     fifaWorldCup2026,
     uefaChampionsLeague,
     mls2026
-  });
+  };
+
+  console.log("highlight response:", response);
+  console.log("highlight length:", response.data?.length);
+  return NextResponse.json(response);
 }
 
 export async function GET() {
