@@ -322,10 +322,10 @@ export function Shell({ children, immersive = false }: { children: ReactNode; im
         {children}
 
         {!immersive && (
-          <footer className="w-full border-t border-white/5 bg-transparent py-5 text-center select-none mt-12">
-            <div className="flex flex-col items-center justify-center gap-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/44">NJ Sports</span>
-              <span className="text-[10px] font-medium tracking-normal text-white/24">Nishant Jangra</span>
+          <footer className="w-full border-t border-white/5 bg-transparent py-5 select-none mt-12 px-5 sm:px-8 lg:px-10">
+            <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-white/44">
+              <p className="text-center sm:text-left">© 2026 NJ Sports. All rights reserved.</p>
+              <p className="text-center sm:text-right text-[11px] text-white/32">Developed by Nishant Jangra</p>
             </div>
           </footer>
         )}
