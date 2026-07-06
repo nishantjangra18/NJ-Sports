@@ -22,53 +22,38 @@ function streamKey(stream: StreamedStream, index: number) {
   return `${stream.id}-${index}-${stream.embedUrl}`;
 }
 
+const PREDEFINED_SERVERS = [
+  "Server #1 (English - TSN)",
+  "Server #2 (English - TSN)",
+  "Server #3 (English - FOX)",
+  "Server #4 (English - FOX)",
+  "Server #5 (English - BBC/ITV)",
+  "Server #6 (English - BBC/ITV)",
+  "Server #7 (French - BeIN Sports 1)",
+  "Server #8 (French - BeIN Sports 1)",
+  "Server #9 (Spanish - DAZN Spain)",
+  "Server #10 (Spanish - DAZN Spain)",
+  "Server #11 (Spanish - Telemundo)",
+  "Server #12 (Spanish - Telemundo)"
+];
+
+function getPredefinedServerLabel(index: number): string {
+  if (index >= 0 && index < PREDEFINED_SERVERS.length) {
+    return PREDEFINED_SERVERS[index];
+  }
+  return `Server #${index + 1}`;
+}
+
 function streamLabel(stream: StreamedStream, index: number, recommendedIndex: number | null) {
-  const language = stream.language?.trim();
-  const quality = stream.quality?.trim();
-  if (language && quality) return `${language} ${quality}`;
-  if (language) return language;
-  if (recommendedIndex === index) return "Recommended";
-  if (index === 1 || (recommendedIndex !== null && index === 0 && recommendedIndex !== 0)) return "Backup Server";
-  if (index > 1) return `Mirror ${index - 1}`;
-  return "Backup Server";
+  return getPredefinedServerLabel(index);
 }
 
 function streamSourceLabel(stream: StreamedStream, index: number) {
-  return stream.serverName?.trim() || stream.source?.trim() || `Server ${index + 1}`;
+  return getPredefinedServerLabel(index);
 }
 
 function streamLanguageLabel(stream: StreamedStream) {
-  return stream.language?.trim() || "Default";
-}
-
-function mobileServerLabel(stream: StreamedStream, index: number) {
-  const language = stream.language?.trim();
-  const source = stream.serverName?.trim() || stream.source?.trim();
-  const quality = stream.quality?.trim();
-
-  if (language && source && quality) {
-    const combinedSource = source.toLowerCase().includes(quality.toLowerCase()) ? source : `${source} ${quality}`;
-    return `${language} • ${combinedSource}`;
-  }
-
-  if (language && source) {
-    return `${language} • ${source}`;
-  }
-
-  if (language && quality) {
-    return `${language} • ${quality} Stream`;
-  }
-
-  if (quality && source) {
-    const hasQuality = source.toLowerCase().includes(quality.toLowerCase());
-    return hasQuality ? source : `${quality} Stream • ${source}`;
-  }
-
-  if (language) return language;
-  if (source) return source;
-  if (quality) return `${quality} Stream`;
-
-  return `Server ${index + 1}`;
+  return "Default";
 }
 
 function nextCandidateIndex(streams: StreamedStream[], failedKeys: Set<string>, currentIndex: number) {
@@ -797,7 +782,7 @@ export function PlayerExperience({ slug }: { slug: string }) {
                     >
                       {streamList.map((stream, index) => (
                         <option key={streamKey(stream, index)} value={index}>
-                          {mobileServerLabel(stream, index)}
+                          {getPredefinedServerLabel(index)}
                         </option>
                       ))}
                     </select>
@@ -1065,9 +1050,9 @@ export function PlayerExperience({ slug }: { slug: string }) {
                           return (
                             <button key={key} type="button" onClick={() => switchServer(index)} className={cn("flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/10", active && "bg-white/10 ring-1 ring-studio-accent/45", failed && "opacity-50")}>
                               <span>
-                                <span className="text-sm font-semibold text-white">Server {index + 1}</span>
-                                <span className="mt-1 block text-xs leading-5 text-studio-muted">Source: {streamSourceLabel(stream, index)}</span>
-                                <span className="block text-xs leading-5 text-studio-muted">Language: {streamLanguageLabel(stream)}</span>
+                                <span className="text-sm font-semibold text-white">
+                                  {getPredefinedServerLabel(index)}
+                                </span>
                               </span>
                               {active ? <Check className="h-4 w-4 text-studio-accent" /> : null}
                             </button>
