@@ -427,7 +427,7 @@ function Ticker({ matches }: { matches: WorldCupMatch[] }) {
           position: fixed;
           left: 0;
           right: 0;
-          bottom: calc(68px + env(safe-area-inset-bottom));
+          bottom: calc(84px + env(safe-area-inset-bottom));
           z-index: 20;
         }
         @media (min-width: 768px) {
