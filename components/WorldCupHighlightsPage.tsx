@@ -343,7 +343,7 @@ export function WorldCupHighlightsPage() {
 
   return (
     <Shell>
-      <main className="min-h-screen overflow-hidden bg-[#050507]">
+      <main className="min-h-screen overflow-hidden bg-[#050507] md:pb-16">
         <Hero />
         <Scorecards matches={allMatches} loading={fixtures.isLoading} hasData={hasWorldCupData} />
         <Fixtures matches={allMatches} hasData={hasWorldCupData} />
